@@ -1,0 +1,23 @@
+{
+  "name": "solans-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "anchor:build": "NO_DNA=1 anchor build",
+    "generate": "rm -rf clients/ts/src/generated && codama run js",
+    "build:client": "pnpm anchor:build && pnpm generate",
+    "test": "pnpm --filter solans-tests test",
+    "cli": "pnpm --filter solans-cli exec solans"
+  },
+  "devDependencies": {
+    "@codama/cli": "^1.5.3",
+    "@codama/nodes-from-anchor": "^1.5.1",
+    "@codama/renderers-js": "^2.3.0",
+    "tsx": "^4.22.4",
+    "typescript": "^5.7.3"
+  }
+}

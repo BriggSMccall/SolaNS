@@ -1,0 +1,8 @@
+packages:
+  - "clients/*"
+  - "cli"
+  - "tests"
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@codama/renderers-js@2.3.0'

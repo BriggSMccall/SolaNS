@@ -1,0 +1,18 @@
+{
+  "name": "solans-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "solans": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@solana-program/token": "^0.14.0",
+    "@solana/kit": "^6.10.0",
+    "@solans/client": "workspace:*",
+    "commander": "^15.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.4"
+  }
+}

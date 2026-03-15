@@ -1,0 +1,17 @@
+{
+  "idl": "target/idl/solans.json",
+  "before": [],
+  "scripts": {
+    "js": {
+      "from": "@codama/renderers-js",
+      "args": [
+        "clients/ts",
+        {
+          "generatedFolder": "src/generated",
+          "syncPackageJson": false,
+          "kitImportStrategy": "rootOnly"
+        }
+      ]
+    }
+  }
+}

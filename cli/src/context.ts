@@ -60,14 +60,7 @@ export async function loadSigner(opts: GlobalOpts): Promise<KeyPairSigner> {
   return createKeyPairSignerFromBytes(bytes);
 }
 
-export type Ctx = {
-  rpc: ReturnType<typeof createSolanaRpc>;
-  rpcSubscriptions: ReturnType<typeof createSolanaRpcSubscriptions>;
-  signer: KeyPairSigner;
-  opts: GlobalOpts;
-};
-
-export async function makeContext(opts: GlobalOpts): Promise<Ctx> {
+export async function makeContext(opts: GlobalOpts) {
   const { rpc: rpcUrl, ws } = resolveUrls(opts);
   return {
     rpc: createSolanaRpc(rpcUrl),
@@ -76,6 +69,9 @@ export async function makeContext(opts: GlobalOpts): Promise<Ctx> {
     opts,
   };
 }
+
+/** Inferred from makeContext so the RPC keeps its precise, cluster-agnostic kit types. */
+export type Ctx = Awaited<ReturnType<typeof makeContext>>;
 
 /** Fetch the registry config account (throws if not yet initialized). */
 export async function getConfig(ctx: Ctx) {
@@ -119,7 +115,10 @@ export async function sendInstructions(ctx: Ctx, instructions: readonly any[]): 
     rpc: ctx.rpc,
     rpcSubscriptions: ctx.rpcSubscriptions,
   });
-  await sendAndConfirm(signedTx, { commitment: "confirmed" });
+  // The message is built with a blockhash lifetime, but TS widens it to
+  // TransactionWithLifetime through the untyped instruction array; assert the
+  // concrete type the factory expects (correct at runtime).
+  await sendAndConfirm(signedTx as Parameters<typeof sendAndConfirm>[0], { commitment: "confirmed" });
   return getSignatureFromTransaction(signedTx);
 }
 

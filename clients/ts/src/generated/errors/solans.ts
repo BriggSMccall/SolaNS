@@ -46,6 +46,8 @@ export const SOLANS_ERROR__RECORD_TOO_LONG = 0x177d; // 6013
 export const SOLANS_ERROR__INVALID_TREASURY = 0x177e; // 6014
 /** InvalidMint: Payment mint does not match config */
 export const SOLANS_ERROR__INVALID_MINT = 0x177f; // 6015
+/** NotAdmin: Signer is not the config admin */
+export const SOLANS_ERROR__NOT_ADMIN = 0x1780; // 6016
 
 export type SolansError =
   | typeof SOLANS_ERROR__INVALID_MINT
@@ -57,6 +59,7 @@ export type SolansError =
   | typeof SOLANS_ERROR__INVALID_YEARS
   | typeof SOLANS_ERROR__MATH_OVERFLOW
   | typeof SOLANS_ERROR__NAME_MISMATCH
+  | typeof SOLANS_ERROR__NOT_ADMIN
   | typeof SOLANS_ERROR__NOT_AUTHORIZED
   | typeof SOLANS_ERROR__NOT_EXPIRED
   | typeof SOLANS_ERROR__NOT_OWNER
@@ -77,6 +80,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__INVALID_YEARS]: `Registration term (years) is out of the allowed range`,
     [SOLANS_ERROR__MATH_OVERFLOW]: `Arithmetic overflow`,
     [SOLANS_ERROR__NAME_MISMATCH]: `Provided name does not match the account's name hash`,
+    [SOLANS_ERROR__NOT_ADMIN]: `Signer is not the config admin`,
     [SOLANS_ERROR__NOT_AUTHORIZED]: `Signer is not the owner or controller of this name`,
     [SOLANS_ERROR__NOT_EXPIRED]: `Name is not past its expiration + grace period`,
     [SOLANS_ERROR__NOT_OWNER]: `Signer is not the owner of this name`,

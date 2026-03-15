@@ -15,4 +15,5 @@ export * from "./renewName";
 export * from "./setController";
 export * from "./setReverse";
 export * from "./transferName";
+export * from "./updateConfig";
 export * from "./updateRecord";

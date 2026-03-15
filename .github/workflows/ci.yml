@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# ubuntu-24.04 provides GLIBC >= 2.39, required by Anchor 1.0 prebuilt tooling
+# and the litesvm native binding.
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust 1.89
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.89.0"
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Solana CLI 3.1.10
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v3.1.10/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor 1.0.2 (avm)
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --force
+          avm install 1.0.2
+          avm use 1.0.2
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build program
+        run: NO_DNA=1 anchor build
+
+      - name: Verify the generated client is up to date
+        run: |
+          pnpm generate
+          git diff --exit-code clients/ts/src/generated
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test (litesvm)
+        run: pnpm --filter solans-tests test

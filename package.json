@@ -10,6 +10,7 @@
     "anchor:build": "NO_DNA=1 anchor build",
     "generate": "rm -rf clients/ts/src/generated && codama run js",
     "build:client": "pnpm anchor:build && pnpm generate",
+    "typecheck": "tsc -p clients/ts && tsc -p cli && tsc -p tests",
     "test": "pnpm --filter solans-tests test",
     "cli": "pnpm --filter solans-cli exec solans"
   },
@@ -17,6 +18,7 @@
     "@codama/cli": "^1.5.3",
     "@codama/nodes-from-anchor": "^1.5.1",
     "@codama/renderers-js": "^2.3.0",
+    "@types/node": "^25.9.3",
     "tsx": "^4.22.4",
     "typescript": "^5.7.3"
   }

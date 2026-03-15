@@ -10,6 +10,7 @@ pub mod renew_name;
 pub mod set_controller;
 pub mod set_reverse;
 pub mod transfer_name;
+pub mod update_config;
 pub mod update_record;
 
 // Glob re-exports (matches the Anchor convention) so the `#[program]` macro can
@@ -25,4 +26,5 @@ pub use renew_name::*;
 pub use set_controller::*;
 pub use set_reverse::*;
 pub use transfer_name::*;
+pub use update_config::*;
 pub use update_record::*;

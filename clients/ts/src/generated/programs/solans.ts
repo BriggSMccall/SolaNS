@@ -55,6 +55,7 @@ import {
   getSetControllerInstruction,
   getSetReverseInstructionAsync,
   getTransferNameInstruction,
+  getUpdateConfigInstructionAsync,
   getUpdateRecordInstruction,
   parseBurnNameInstruction,
   parseClaimExpiredInstruction,
@@ -65,6 +66,7 @@ import {
   parseSetControllerInstruction,
   parseSetReverseInstruction,
   parseTransferNameInstruction,
+  parseUpdateConfigInstruction,
   parseUpdateRecordInstruction,
   type BurnNameInput,
   type ClaimExpiredAsyncInput,
@@ -79,12 +81,14 @@ import {
   type ParsedSetControllerInstruction,
   type ParsedSetReverseInstruction,
   type ParsedTransferNameInstruction,
+  type ParsedUpdateConfigInstruction,
   type ParsedUpdateRecordInstruction,
   type RegisterNameAsyncInput,
   type RenewNameAsyncInput,
   type SetControllerInput,
   type SetReverseAsyncInput,
   type TransferNameInput,
+  type UpdateConfigAsyncInput,
   type UpdateRecordInput,
 } from "../instructions";
 import {
@@ -155,6 +159,7 @@ export enum SolansInstruction {
   SetController,
   SetReverse,
   TransferName,
+  UpdateConfig,
   UpdateRecord,
 }
 
@@ -265,6 +270,17 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([29, 158, 252, 191, 10, 83, 219, 99]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.UpdateConfig;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([54, 194, 108, 162, 199, 12, 5, 60]),
       ),
       0,
@@ -308,6 +324,9 @@ export type ParsedSolansInstruction<
   | ({
       instructionType: SolansInstruction.TransferName;
     } & ParsedTransferNameInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.UpdateConfig;
+    } & ParsedUpdateConfigInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.UpdateRecord;
     } & ParsedUpdateRecordInstruction<TProgram>);
@@ -380,6 +399,13 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseTransferNameInstruction(instruction),
       };
     }
+    case SolansInstruction.UpdateConfig: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.UpdateConfig,
+        ...parseUpdateConfigInstruction(instruction),
+      };
+    }
     case SolansInstruction.UpdateRecord: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -447,6 +473,10 @@ export type SolansPluginInstructions = {
   transferName: (
     input: TransferNameInput,
   ) => ReturnType<typeof getTransferNameInstruction> & SelfPlanAndSendFunctions;
+  updateConfig: (
+    input: UpdateConfigAsyncInput,
+  ) => ReturnType<typeof getUpdateConfigInstructionAsync> &
+    SelfPlanAndSendFunctions;
   updateRecord: (
     input: UpdateRecordInput,
   ) => ReturnType<typeof getUpdateRecordInstruction> & SelfPlanAndSendFunctions;
@@ -524,6 +554,11 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getTransferNameInstruction(input),
+            ),
+          updateConfig: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getUpdateConfigInstructionAsync(input),
             ),
           updateRecord: (input) =>
             addSelfPlanAndSendFunctions(

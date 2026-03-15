@@ -34,4 +34,6 @@ pub enum SolansError {
     InvalidTreasury,
     #[msg("Payment mint does not match config")]
     InvalidMint,
+    #[msg("Signer is not the config admin")]
+    NotAdmin,
 }

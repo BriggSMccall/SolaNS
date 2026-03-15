@@ -14,6 +14,7 @@ import {
   getSetControllerInstruction,
   getSetReverseInstructionAsync,
   getTransferNameInstruction,
+  getUpdateConfigInstructionAsync,
   getUpdateRecordInstruction,
   nameHashFor,
   normalizeName,
@@ -72,6 +73,34 @@ program
       gracePeriodSeconds: BigInt(o.grace),
       minYears: Number(o.minYears),
       maxYears: Number(o.maxYears),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("update-config")
+  .description("Update registry economic params, admin only (only provided flags change)")
+  .option("--price1 <baseUnits>", "1-char price / year")
+  .option("--price2 <baseUnits>", "2-char price / year")
+  .option("--price3 <baseUnits>", "3-char price / year")
+  .option("--price4 <baseUnits>", "4-char price / year")
+  .option("--price5 <baseUnits>", "5+-char price / year")
+  .option("--grace <seconds>", "grace period before claim")
+  .option("--min-years <n>", "minimum term")
+  .option("--max-years <n>", "maximum term")
+  .action(async (o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const d = (await getConfig(ctx)).data;
+    const ix = await getUpdateConfigInstructionAsync({
+      admin: ctx.signer,
+      price1: o.price1 ? BigInt(o.price1) : d.price1,
+      price2: o.price2 ? BigInt(o.price2) : d.price2,
+      price3: o.price3 ? BigInt(o.price3) : d.price3,
+      price4: o.price4 ? BigInt(o.price4) : d.price4,
+      price5plus: o.price5 ? BigInt(o.price5) : d.price5plus,
+      gracePeriodSeconds: o.grace ? BigInt(o.grace) : d.gracePeriodSeconds,
+      minYears: o.minYears ? Number(o.minYears) : d.minYears,
+      maxYears: o.maxYears ? Number(o.maxYears) : d.maxYears,
     });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });

@@ -98,4 +98,29 @@ pub mod solans {
     pub fn burn_name(ctx: Context<BurnName>) -> Result<()> {
         instructions::burn_name::handler(ctx)
     }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_config(
+        ctx: Context<UpdateConfig>,
+        price_1: u64,
+        price_2: u64,
+        price_3: u64,
+        price_4: u64,
+        price_5plus: u64,
+        grace_period_seconds: i64,
+        min_years: u16,
+        max_years: u16,
+    ) -> Result<()> {
+        instructions::update_config::handler(
+            ctx,
+            price_1,
+            price_2,
+            price_3,
+            price_4,
+            price_5plus,
+            grace_period_seconds,
+            min_years,
+            max_years,
+        )
+    }
 }

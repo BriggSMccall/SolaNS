@@ -39,9 +39,9 @@ pub fn validate_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Validate the TLD against the MVP allowlist (`sol` only).
+/// Validate the TLD against the program allowlist.
 pub fn validate_tld(tld: &str) -> Result<()> {
-    require!(tld == ALLOWED_TLD, SolansError::InvalidTld);
+    require!(ALLOWED_TLDS.contains(&tld), SolansError::InvalidTld);
     Ok(())
 }
 

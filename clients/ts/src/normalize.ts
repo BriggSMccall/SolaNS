@@ -1,42 +1,74 @@
-/** The only TLD supported by the MVP program. */
-export const TLD = "sol";
+/** Default TLD applied when the input has none. */
+export const DEFAULT_TLD = "sol";
+
+/** TLDs the program accepts (mirrors `ALLOWED_TLDS` in the program). */
+export const ALLOWED_TLDS = ["sol", "chain", "web3"] as const;
+export type Tld = (typeof ALLOWED_TLDS)[number];
+
+/** Back-compat alias for the default TLD. */
+export const TLD = DEFAULT_TLD;
 
 /** DNS label cap, mirrors NAME_MAX_LEN in the program. */
 export const NAME_MAX_LEN = 63;
 
-const ALLOWED = /^[a-z0-9-]+$/;
+const LABEL = /^[a-z0-9-]+$/;
 
-/**
- * Normalize + validate a name to the program's canonical on-chain form:
- * lowercase ASCII `[a-z0-9-]`, length 1..=63, no leading / trailing / consecutive
- * hyphen. Mirrors `validate_name` in `programs/solans/src/utils.rs`.
- *
- * The MVP program only accepts lowercase ASCII, so full Unicode / NFKC handling
- * is intentionally out of scope: anything outside the allowed set is rejected
- * (not transformed), guaranteeing exactly one byte string per registrable name.
- * Throws on invalid input.
- */
-export function normalizeName(input: string): string {
-  let name = input.trim().toLowerCase();
-  if (name.endsWith(`.${TLD}`)) {
-    name = name.slice(0, -(TLD.length + 1));
+function isAllowedTld(t: string): t is Tld {
+  return (ALLOWED_TLDS as readonly string[]).includes(t);
+}
+
+/** Validate (and normalize) a TLD against the allowlist; strips a leading dot. */
+export function validateTld(tld: string): Tld {
+  const t = tld.trim().toLowerCase().replace(/^\./, "");
+  if (!isAllowedTld(t)) {
+    throw new Error(`Unsupported TLD "${tld}" (allowed: ${ALLOWED_TLDS.join(", ")})`);
   }
-  if (name.length < 1 || name.length > NAME_MAX_LEN) {
+  return t;
+}
+
+/** Validate a bare label (no TLD) to the program's canonical ASCII form. */
+function validateLabel(label: string, input: string): string {
+  if (label.length < 1 || label.length > NAME_MAX_LEN) {
     throw new Error(`Invalid name length (must be 1-${NAME_MAX_LEN}): "${input}"`);
   }
-  if (!ALLOWED.test(name)) {
+  if (!LABEL.test(label)) {
     throw new Error(`Name has invalid characters (allowed: a-z 0-9 -): "${input}"`);
   }
-  if (name.startsWith("-") || name.endsWith("-") || name.includes("--")) {
+  if (label.startsWith("-") || label.endsWith("-") || label.includes("--")) {
     throw new Error(`Invalid hyphen position (no leading/trailing/double): "${input}"`);
   }
-  return name;
+  return label;
+}
+
+/**
+ * Parse `"name"` or `"name.tld"` into a normalized `{ name, tld }`. An allowed
+ * TLD suffix in the input is honored; `tldOverride` (if given) wins; otherwise
+ * the TLD defaults to `sol`. Mirrors the program's name/TLD validation, so the
+ * MVP rules apply (lowercase ASCII label; a non-TLD dot makes the label invalid).
+ * Throws on invalid input.
+ */
+export function parseName(input: string, tldOverride?: string): { name: string; tld: Tld } {
+  const trimmed = input.trim().toLowerCase();
+  let label = trimmed;
+  let tld: string = DEFAULT_TLD;
+  const dot = trimmed.lastIndexOf(".");
+  if (dot > 0 && isAllowedTld(trimmed.slice(dot + 1))) {
+    label = trimmed.slice(0, dot);
+    tld = trimmed.slice(dot + 1);
+  }
+  if (tldOverride) tld = validateTld(tldOverride);
+  return { name: validateLabel(label, input), tld: tld as Tld };
+}
+
+/** Normalize raw input to its canonical label (drops any allowed TLD suffix). */
+export function normalizeName(input: string): string {
+  return parseName(input).name;
 }
 
 /** True if `input` is a valid registrable name (does not throw). */
 export function isValidName(input: string): boolean {
   try {
-    normalizeName(input);
+    parseName(input);
     return true;
   } catch {
     return false;

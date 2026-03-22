@@ -19,8 +19,8 @@ import {
   getUpdateConfigInstructionAsync,
   getUpdateRecordInstruction,
   nameHashFor,
+  nameParts,
   normalizeName,
-  TLD,
 } from "@solans/client";
 import {
   ataFor,
@@ -116,21 +116,21 @@ program
   .action(async (name, o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const cfg = await getConfig(ctx);
-    const norm = normalizeName(name);
+    const { name: label, tld, hash } = nameParts(name);
     const ix = await getRegisterNameInstructionAsync({
       payer: ctx.signer,
       owner: o.owner ? address(o.owner) : ctx.signer.address,
       payerTokenAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
       treasuryTokenAccount: cfg.data.treasuryTokenAccount,
       paymentMint: cfg.data.paymentMint,
-      name: norm,
-      tld: TLD,
-      nameHash: nameHashFor(name),
+      name: label,
+      tld,
+      nameHash: hash,
       years: Number(o.years),
     });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
-    const [pda] = await nameRecordPda(name);
-    console.log(`  ${norm}.${TLD} -> ${pda}`);
+    const [pda] = await findNameRecordPda({ nameHash: hash });
+    console.log(`  ${label}.${tld} -> ${pda}`);
   });
 
 program
@@ -140,15 +140,16 @@ program
   .action(async (name, o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const cfg = await getConfig(ctx);
-    const [nameRecord] = await nameRecordPda(name);
+    const { name: label, tld, hash } = nameParts(name);
+    const [nameRecord] = await findNameRecordPda({ nameHash: hash });
     const ix = await getRenewNameInstructionAsync({
       payer: ctx.signer,
       nameRecord,
       payerTokenAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
       treasuryTokenAccount: cfg.data.treasuryTokenAccount,
       paymentMint: cfg.data.paymentMint,
-      name: normalizeName(name),
-      tld: TLD,
+      name: label,
+      tld,
       years: Number(o.years),
     });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
@@ -161,15 +162,16 @@ program
   .action(async (name, o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const cfg = await getConfig(ctx);
-    const [nameRecord] = await nameRecordPda(name);
+    const { name: label, tld, hash } = nameParts(name);
+    const [nameRecord] = await findNameRecordPda({ nameHash: hash });
     const ix = await getClaimExpiredInstructionAsync({
       claimer: ctx.signer,
       nameRecord,
       payerTokenAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
       treasuryTokenAccount: cfg.data.treasuryTokenAccount,
       paymentMint: cfg.data.paymentMint,
-      name: normalizeName(name),
-      tld: TLD,
+      name: label,
+      tld,
       years: Number(o.years),
     });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
@@ -273,17 +275,17 @@ program
 
 // --- reads -----------------------------------------------------------------
 async function showRecord(ctx: Ctx, name: string, full: boolean) {
-  const norm = normalizeName(name);
-  const [pda] = await nameRecordPda(name);
+  const { name: label, tld, hash } = nameParts(name);
+  const [pda] = await findNameRecordPda({ nameHash: hash });
   const acct = await fetchMaybeNameRecord(ctx.rpc, pda);
   if (!acct.exists) {
-    if (ctx.opts.json) console.log(JSON.stringify({ name: `${norm}.${TLD}`, registered: false }));
-    else console.log(`${norm}.${TLD} is not registered`);
+    if (ctx.opts.json) console.log(JSON.stringify({ name: `${label}.${tld}`, registered: false }));
+    else console.log(`${label}.${tld} is not registered`);
     return;
   }
   const d = acct.data;
   const out: Record<string, unknown> = {
-    name: `${norm}.${TLD}`,
+    name: `${label}.${tld}`,
     pda,
     owner: d.owner,
     controller: unwrapOption(d.controller),

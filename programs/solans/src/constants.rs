@@ -19,5 +19,6 @@ pub const HOSTING_MAX_LEN: usize = 80;
 // Time: 365-day approximation (leap seconds ignored for the MVP).
 pub const SECONDS_PER_YEAR: i64 = 31_536_000;
 
-// The only TLD supported by the MVP.
-pub const ALLOWED_TLD: &str = "sol";
+// TLDs the program accepts (the client mirrors this list). Each TLD is part of
+// the name hash, so the same label under different TLDs gets a distinct PDA.
+pub const ALLOWED_TLDS: &[&str] = &["sol", "chain", "web3"];

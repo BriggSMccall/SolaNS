@@ -28,10 +28,8 @@ import {
   findNameRecordPda,
   getInitConfigInstructionAsync,
   getRegisterNameInstructionAsync,
-  nameHashFor,
-  normalizeName,
+  nameParts,
   SOLANS_PROGRAM_ADDRESS,
-  TLD,
 } from "@solans/client";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -154,19 +152,20 @@ export async function registerName(
   opts?: { owner?: Address; years?: number; payer?: KeyPairSigner; payerAta?: Address },
 ): Promise<Address> {
   const payer = opts?.payer ?? env.payer;
+  const { name: label, tld, hash } = nameParts(name);
   const ix = await getRegisterNameInstructionAsync({
     payer,
     owner: opts?.owner ?? payer.address,
     payerTokenAccount: opts?.payerAta ?? env.payerAta,
     treasuryTokenAccount: env.treasury,
     paymentMint: env.mint,
-    name: normalizeName(name),
-    tld: TLD,
-    nameHash: nameHashFor(name),
+    name: label,
+    tld,
+    nameHash: hash,
     years: opts?.years ?? 1,
   });
   await send(env.svm, payer, [ix]);
-  const [pda] = await findNameRecordPda({ nameHash: nameHashFor(name) });
+  const [pda] = await findNameRecordPda({ nameHash: hash });
   return pda;
 }
 

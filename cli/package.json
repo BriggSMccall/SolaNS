@@ -10,6 +10,7 @@
     "@solana-program/token": "^0.14.0",
     "@solana/kit": "^6.10.0",
     "@solans/client": "workspace:*",
+    "@solans/sdk": "workspace:*",
     "commander": "^15.0.0"
   },
   "devDependencies": {

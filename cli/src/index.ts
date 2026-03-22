@@ -1,10 +1,7 @@
 import { Command } from "commander";
 import { address, unwrapOption } from "@solana/kit";
 import {
-  fetchMaybeNameRecord,
-  fetchMaybeReverseRecord,
   findNameRecordPda,
-  findReverseRecordPda,
   getBurnNameInstruction,
   getClaimExpiredInstructionAsync,
   getInitConfigInstructionAsync,
@@ -22,6 +19,7 @@ import {
   nameParts,
   normalizeName,
 } from "@solans/client";
+import { SolansClient } from "@solans/sdk";
 import {
   ataFor,
   getConfig,
@@ -277,13 +275,12 @@ program
 async function showRecord(ctx: Ctx, name: string, full: boolean) {
   const { name: label, tld, hash } = nameParts(name);
   const [pda] = await findNameRecordPda({ nameHash: hash });
-  const acct = await fetchMaybeNameRecord(ctx.rpc, pda);
-  if (!acct.exists) {
+  const d = await SolansClient.fromRpc(ctx.rpc).resolve(name);
+  if (!d) {
     if (ctx.opts.json) console.log(JSON.stringify({ name: `${label}.${tld}`, registered: false }));
     else console.log(`${label}.${tld} is not registered`);
     return;
   }
-  const d = acct.data;
   const out: Record<string, unknown> = {
     name: `${label}.${tld}`,
     pda,
@@ -292,6 +289,8 @@ async function showRecord(ctx: Ctx, name: string, full: boolean) {
     expiresAt: new Date(Number(d.expiresAt) * 1000).toISOString(),
     transferLocked: d.transferLocked,
     reverseSet: d.reverseSet,
+    resolver: unwrapOption(d.resolver),
+    hostingRef: unwrapOption(d.hostingRef),
     records: d.records.map((r) => ({ key: r.key, value: r.value })),
   };
   if (full) {
@@ -308,6 +307,10 @@ async function showRecord(ctx: Ctx, name: string, full: boolean) {
     console.log(`  controller: ${unwrapOption(d.controller) ?? "(none)"}`);
     console.log(`  expires:    ${out.expiresAt}`);
     console.log(`  locked:     ${d.transferLocked}   reverseSet: ${d.reverseSet}`);
+    const resolver = unwrapOption(d.resolver);
+    const hosting = unwrapOption(d.hostingRef);
+    if (resolver) console.log(`  resolver:   ${resolver}`);
+    if (hosting) console.log(`  hosting:    ${hosting}`);
     if (d.records.length === 0) console.log(`  records:    (none)`);
     else for (const r of d.records) console.log(`  record:     ${r.key} = ${r.value}`);
   }
@@ -332,25 +335,9 @@ program
   .description("Resolve a wallet -> its primary name (round-trip validated)")
   .action(async (pubkey, _o, cmd) => {
     const ctx = await makeContext(g(cmd));
-    const owner = address(pubkey);
-    const [rpda] = await findReverseRecordPda({ owner });
-    const rev = await fetchMaybeReverseRecord(ctx.rpc, rpda);
-    if (!rev.exists) {
-      if (ctx.opts.json) console.log(JSON.stringify({ pubkey, name: null }));
-      else console.log(`${pubkey} has no reverse record`);
-      return;
-    }
-    const name = `${rev.data.name}.${rev.data.tld}`;
-    const [npda] = await findNameRecordPda({ nameHash: rev.data.nameHash });
-    const fwd = await fetchMaybeNameRecord(ctx.rpc, npda);
-    const valid = fwd.exists && fwd.data.owner === owner;
-    if (ctx.opts.json) {
-      console.log(JSON.stringify({ pubkey, name, valid }));
-    } else if (valid) {
-      console.log(`${pubkey} -> ${name}`);
-    } else {
-      console.log(`${pubkey} -> ${name}  (STALE: forward record no longer owned by this wallet)`);
-    }
+    const name = await SolansClient.fromRpc(ctx.rpc).reverseLookup(address(pubkey));
+    if (ctx.opts.json) console.log(JSON.stringify({ pubkey, name }));
+    else console.log(name ? `${pubkey} -> ${name}` : `${pubkey} has no valid reverse record`);
   });
 
 program.parseAsync(process.argv).catch((e: unknown) => {

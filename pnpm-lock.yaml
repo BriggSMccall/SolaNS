@@ -38,6 +38,9 @@ importers:
       '@solans/client':
         specifier: workspace:*
         version: link:../clients/ts
+      '@solans/sdk':
+        specifier: workspace:*
+        version: link:../clients/sdk
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -45,6 +48,15 @@ importers:
       tsx:
         specifier: ^4.22.4
         version: 4.22.4
+
+  clients/sdk:
+    dependencies:
+      '@solana/kit':
+        specifier: ^6.10.0
+        version: 6.10.0(typescript@5.9.3)
+      '@solans/client':
+        specifier: workspace:*
+        version: link:../ts
 
   clients/ts:
     dependencies:
@@ -66,6 +78,9 @@ importers:
       '@solans/client':
         specifier: workspace:*
         version: link:../clients/ts
+      '@solans/sdk':
+        specifier: workspace:*
+        version: link:../clients/sdk
     devDependencies:
       litesvm:
         specifier: ^1.1.0

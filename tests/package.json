@@ -11,7 +11,8 @@
     "@solana-program/token": "^0.14.0",
     "@solana/kit": "^6.10.0",
     "@solans/client": "workspace:*",
-    "@solans/sdk": "workspace:*"
+    "@solans/sdk": "workspace:*",
+    "solans-resolver": "workspace:*"
   },
   "devDependencies": {
     "litesvm": "^1.1.0",

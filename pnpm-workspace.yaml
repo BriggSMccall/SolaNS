@@ -1,6 +1,7 @@
 packages:
   - "clients/*"
   - "cli"
+  - "services/*"
   - "tests"
 allowBuilds:
   esbuild: true

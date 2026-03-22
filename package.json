@@ -10,7 +10,7 @@
     "anchor:build": "NO_DNA=1 anchor build",
     "generate": "rm -rf clients/ts/src/generated && codama run js",
     "build:client": "pnpm anchor:build && pnpm generate",
-    "typecheck": "tsc -p clients/ts && tsc -p clients/sdk && tsc -p cli && tsc -p tests",
+    "typecheck": "tsc -p clients/ts && tsc -p clients/sdk && tsc -p services/resolver && tsc -p cli && tsc -p tests",
     "test": "pnpm --filter solans-tests test",
     "cli": "pnpm --filter solans-cli exec solans"
   },

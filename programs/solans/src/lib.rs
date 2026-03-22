@@ -74,6 +74,14 @@ pub mod solans {
         instructions::set_controller::handler(ctx, controller)
     }
 
+    pub fn set_resolver(ctx: Context<SetResolver>, resolver: Option<Pubkey>) -> Result<()> {
+        instructions::set_resolver::handler(ctx, resolver)
+    }
+
+    pub fn set_hosting(ctx: Context<SetHosting>, hosting_ref: Option<String>) -> Result<()> {
+        instructions::set_hosting::handler(ctx, hosting_ref)
+    }
+
     pub fn transfer_name(ctx: Context<TransferName>, new_owner: Pubkey) -> Result<()> {
         instructions::transfer_name::handler(ctx, new_owner)
     }

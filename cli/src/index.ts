@@ -12,6 +12,8 @@ import {
   getRegisterNameInstructionAsync,
   getRenewNameInstructionAsync,
   getSetControllerInstruction,
+  getSetHostingInstruction,
+  getSetResolverInstruction,
   getSetReverseInstructionAsync,
   getTransferNameInstruction,
   getUpdateConfigInstructionAsync,
@@ -203,6 +205,28 @@ program
     const [nameRecord] = await nameRecordPda(name);
     const value = controller.toLowerCase() === "none" ? null : address(controller);
     const ix = getSetControllerInstruction({ owner: ctx.signer, nameRecord, controller: value });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("set-resolver <name> <program>")
+  .description("Set a custom resolver program ('none' to clear)")
+  .action(async (name, resolver, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const [nameRecord] = await nameRecordPda(name);
+    const value = resolver.toLowerCase() === "none" ? null : address(resolver);
+    const ix = getSetResolverInstruction({ owner: ctx.signer, nameRecord, resolver: value });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("set-hosting <name> <cid>")
+  .description("Set the hosting content ref ('none' to clear); owner or controller")
+  .action(async (name, cid, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const [nameRecord] = await nameRecordPda(name);
+    const value = cid.toLowerCase() === "none" ? null : cid;
+    const ix = getSetHostingInstruction({ authority: ctx.signer, nameRecord, hostingRef: value });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
 

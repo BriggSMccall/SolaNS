@@ -53,6 +53,8 @@ import {
   getRegisterNameInstructionAsync,
   getRenewNameInstructionAsync,
   getSetControllerInstruction,
+  getSetHostingInstruction,
+  getSetResolverInstruction,
   getSetReverseInstructionAsync,
   getTransferNameInstruction,
   getUpdateConfigInstructionAsync,
@@ -64,6 +66,8 @@ import {
   parseRegisterNameInstruction,
   parseRenewNameInstruction,
   parseSetControllerInstruction,
+  parseSetHostingInstruction,
+  parseSetResolverInstruction,
   parseSetReverseInstruction,
   parseTransferNameInstruction,
   parseUpdateConfigInstruction,
@@ -79,6 +83,8 @@ import {
   type ParsedRegisterNameInstruction,
   type ParsedRenewNameInstruction,
   type ParsedSetControllerInstruction,
+  type ParsedSetHostingInstruction,
+  type ParsedSetResolverInstruction,
   type ParsedSetReverseInstruction,
   type ParsedTransferNameInstruction,
   type ParsedUpdateConfigInstruction,
@@ -86,6 +92,8 @@ import {
   type RegisterNameAsyncInput,
   type RenewNameAsyncInput,
   type SetControllerInput,
+  type SetHostingInput,
+  type SetResolverInput,
   type SetReverseAsyncInput,
   type TransferNameInput,
   type UpdateConfigAsyncInput,
@@ -157,6 +165,8 @@ export enum SolansInstruction {
   RegisterName,
   RenewName,
   SetController,
+  SetHosting,
+  SetResolver,
   SetReverse,
   TransferName,
   UpdateConfig,
@@ -248,6 +258,28 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([213, 38, 154, 154, 19, 200, 116, 114]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.SetHosting;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([137, 108, 27, 51, 202, 16, 33, 119]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.SetResolver;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([75, 137, 158, 195, 18, 45, 48, 16]),
       ),
       0,
@@ -319,6 +351,12 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.SetController;
     } & ParsedSetControllerInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.SetHosting;
+    } & ParsedSetHostingInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.SetResolver;
+    } & ParsedSetResolverInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.SetReverse;
     } & ParsedSetReverseInstruction<TProgram>)
   | ({
@@ -383,6 +421,20 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.SetController,
         ...parseSetControllerInstruction(instruction),
+      };
+    }
+    case SolansInstruction.SetHosting: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.SetHosting,
+        ...parseSetHostingInstruction(instruction),
+      };
+    }
+    case SolansInstruction.SetResolver: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.SetResolver,
+        ...parseSetResolverInstruction(instruction),
       };
     }
     case SolansInstruction.SetReverse: {
@@ -466,6 +518,12 @@ export type SolansPluginInstructions = {
     input: SetControllerInput,
   ) => ReturnType<typeof getSetControllerInstruction> &
     SelfPlanAndSendFunctions;
+  setHosting: (
+    input: SetHostingInput,
+  ) => ReturnType<typeof getSetHostingInstruction> & SelfPlanAndSendFunctions;
+  setResolver: (
+    input: SetResolverInput,
+  ) => ReturnType<typeof getSetResolverInstruction> & SelfPlanAndSendFunctions;
   setReverse: (
     input: SetReverseAsyncInput,
   ) => ReturnType<typeof getSetReverseInstructionAsync> &
@@ -544,6 +602,16 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getSetControllerInstruction(input),
+            ),
+          setHosting: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getSetHostingInstruction(input),
+            ),
+          setResolver: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getSetResolverInstruction(input),
             ),
           setReverse: (input) =>
             addSelfPlanAndSendFunctions(

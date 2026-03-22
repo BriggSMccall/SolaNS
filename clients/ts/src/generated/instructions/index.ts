@@ -13,6 +13,8 @@ export * from "./lockTransfer";
 export * from "./registerName";
 export * from "./renewName";
 export * from "./setController";
+export * from "./setHosting";
+export * from "./setResolver";
 export * from "./setReverse";
 export * from "./transferName";
 export * from "./updateConfig";

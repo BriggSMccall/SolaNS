@@ -36,4 +36,8 @@ pub enum SolansError {
     InvalidMint,
     #[msg("Signer is not the config admin")]
     NotAdmin,
+    #[msg("Name is tokenized as an NFT; redeem it first")]
+    Tokenized,
+    #[msg("Provided mint is not this name's NFT")]
+    InvalidNftMint,
 }

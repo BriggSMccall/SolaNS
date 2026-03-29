@@ -107,6 +107,14 @@ pub mod solans {
         instructions::burn_name::handler(ctx)
     }
 
+    pub fn tokenize_name(ctx: Context<TokenizeName>, name: String) -> Result<()> {
+        instructions::tokenize_name::handler(ctx, name)
+    }
+
+    pub fn redeem_name(ctx: Context<RedeemName>) -> Result<()> {
+        instructions::redeem_name::handler(ctx)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_config(
         ctx: Context<UpdateConfig>,

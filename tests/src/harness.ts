@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  address,
   appendTransactionMessageInstructions,
   createTransactionMessage,
   generateKeyPairSigner,
@@ -19,6 +20,7 @@ import {
   getCreateAssociatedTokenIdempotentInstructionAsync,
   getInitializeMint2Instruction,
   getMintToInstruction,
+  getTokenDecoder,
   TOKEN_PROGRAM_ADDRESS,
 } from "@solana-program/token";
 import {
@@ -34,6 +36,10 @@ import {
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PROGRAM_SO = path.resolve(HERE, "../../target/deploy/solans.so");
+const MPL_SO = path.resolve(HERE, "../fixtures/mpl_token_metadata.so");
+
+/** Metaplex Token Metadata program ID (loaded from a committed mainnet dump). */
+export const MPL_PROGRAM_ADDRESS = address("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
 const MAX_U64 = 18446744073709551615n;
 
@@ -105,6 +111,17 @@ export function readConfig(svm: LiteSVM, pda: Address) {
   const a = svm.getAccount(pda);
   return a.exists ? decodeConfig(a).data : null;
 }
+/** Amount held by an SPL token account, or null if the account is absent/closed. */
+export function readTokenAmount(svm: LiteSVM, ata: Address): bigint | null {
+  const a = svm.getAccount(ata);
+  if (!a.exists || a.data.length === 0) return null;
+  return getTokenDecoder().decode(a.data).amount;
+}
+/** Whether an account currently exists (non-empty) — for asserting closes. */
+export function accountExists(svm: LiteSVM, addr: Address): boolean {
+  const a = svm.getAccount(addr);
+  return a.exists && a.data.length > 0;
+}
 
 /** Warp the validator clock to a given unix timestamp (for expiry tests). */
 export function warpToUnixTimestamp(svm: LiteSVM, unixTimestamp: bigint): void {
@@ -173,6 +190,8 @@ export async function registerName(
 export async function setupEnv(opts?: { gracePeriodSeconds?: bigint }): Promise<TestEnv> {
   const svm = new LiteSVM();
   svm.addProgramFromFile(SOLANS_PROGRAM_ADDRESS, PROGRAM_SO);
+  // Metaplex Token Metadata, needed by tokenize_name / redeem_name CPIs.
+  svm.addProgramFromFile(MPL_PROGRAM_ADDRESS, MPL_SO);
 
   const payer = await generateKeyPairSigner();
   svm.airdrop(payer.address, lamports(1_000_000_000_000n));

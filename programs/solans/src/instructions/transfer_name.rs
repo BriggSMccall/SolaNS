@@ -14,6 +14,9 @@ pub struct TransferName<'info> {
 /// owner's reverse record, if any, becomes stale and is ignored by resolvers).
 pub fn handler(ctx: Context<TransferName>, new_owner: Pubkey) -> Result<()> {
     let nr = &mut ctx.accounts.name_record;
+    // While tokenized, the recorded `owner` is stale (the NFT may have traded);
+    // ownership must move via the NFT, so direct transfer is blocked.
+    require!(nr.nft_mint.is_none(), SolansError::Tokenized);
     require!(!nr.transfer_locked, SolansError::TransferLocked);
     nr.owner = new_owner;
     nr.controller = None;

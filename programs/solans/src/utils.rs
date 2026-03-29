@@ -1,8 +1,29 @@
 use crate::constants::*;
 use crate::error::SolansError;
+use crate::state::NameRecord;
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked};
 use solana_sha256_hasher::hashv;
+
+/// Whether `signer` may perform record-level operations on `nr`.
+///
+/// - **Tokenized** (`nft_mint == Some`): authority is whoever *holds* the NFT.
+///   Holdership is proven by `nft_token_account` (its mint matches `nft_mint`,
+///   its owner is the signer, and it holds the single token). The `owner` field
+///   is intentionally ignored — it may be stale once the NFT trades on a market.
+/// - **Not tokenized**: authority is the recorded `owner`.
+pub fn name_authority_ok(
+    nr: &NameRecord,
+    signer: &Pubkey,
+    nft_token_account: Option<&InterfaceAccount<TokenAccount>>,
+) -> bool {
+    match nr.nft_mint {
+        Some(mint) => nft_token_account.is_some_and(|ta| {
+            ta.mint == mint && ta.owner == *signer && ta.amount == 1
+        }),
+        None => nr.owner == *signer,
+    }
+}
 
 /// Validate a name's raw bytes against the on-chain canonical form:
 /// lowercase ASCII `[a-z0-9-]`, length 1..=63, no leading/trailing/double hyphen.

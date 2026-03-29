@@ -48,12 +48,17 @@ export const SOLANS_ERROR__INVALID_TREASURY = 0x177e; // 6014
 export const SOLANS_ERROR__INVALID_MINT = 0x177f; // 6015
 /** NotAdmin: Signer is not the config admin */
 export const SOLANS_ERROR__NOT_ADMIN = 0x1780; // 6016
+/** Tokenized: Name is tokenized as an NFT; redeem it first */
+export const SOLANS_ERROR__TOKENIZED = 0x1781; // 6017
+/** InvalidNftMint: Provided mint is not this name's NFT */
+export const SOLANS_ERROR__INVALID_NFT_MINT = 0x1782; // 6018
 
 export type SolansError =
   | typeof SOLANS_ERROR__INVALID_MINT
   | typeof SOLANS_ERROR__INVALID_NAME_CHARACTER
   | typeof SOLANS_ERROR__INVALID_NAME_HYPHEN
   | typeof SOLANS_ERROR__INVALID_NAME_LENGTH
+  | typeof SOLANS_ERROR__INVALID_NFT_MINT
   | typeof SOLANS_ERROR__INVALID_TLD
   | typeof SOLANS_ERROR__INVALID_TREASURY
   | typeof SOLANS_ERROR__INVALID_YEARS
@@ -65,6 +70,7 @@ export type SolansError =
   | typeof SOLANS_ERROR__NOT_OWNER
   | typeof SOLANS_ERROR__RECORD_NOT_FOUND
   | typeof SOLANS_ERROR__RECORD_TOO_LONG
+  | typeof SOLANS_ERROR__TOKENIZED
   | typeof SOLANS_ERROR__TOO_MANY_RECORDS
   | typeof SOLANS_ERROR__TRANSFER_LOCKED;
 
@@ -75,6 +81,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__INVALID_NAME_CHARACTER]: `Name contains invalid characters (allowed: lowercase a-z, 0-9, hyphen)`,
     [SOLANS_ERROR__INVALID_NAME_HYPHEN]: `Invalid hyphen position (no leading, trailing, or consecutive hyphens)`,
     [SOLANS_ERROR__INVALID_NAME_LENGTH]: `Name length must be between 1 and 63 characters`,
+    [SOLANS_ERROR__INVALID_NFT_MINT]: `Provided mint is not this name's NFT`,
     [SOLANS_ERROR__INVALID_TLD]: `Unsupported TLD`,
     [SOLANS_ERROR__INVALID_TREASURY]: `Treasury token account does not match config`,
     [SOLANS_ERROR__INVALID_YEARS]: `Registration term (years) is out of the allowed range`,
@@ -86,6 +93,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__NOT_OWNER]: `Signer is not the owner of this name`,
     [SOLANS_ERROR__RECORD_NOT_FOUND]: `Record key not found`,
     [SOLANS_ERROR__RECORD_TOO_LONG]: `Record key or value exceeds the maximum length`,
+    [SOLANS_ERROR__TOKENIZED]: `Name is tokenized as an NFT; redeem it first`,
     [SOLANS_ERROR__TOO_MANY_RECORDS]: `Record store is full`,
     [SOLANS_ERROR__TRANSFER_LOCKED]: `Name transfer is locked`,
   };

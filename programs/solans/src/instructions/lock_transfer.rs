@@ -10,8 +10,13 @@ pub struct LockTransfer<'info> {
     pub name_record: Account<'info, NameRecord>,
 }
 
-/// Lock or unlock transfers. Owner only. Does not affect `claim_expired`.
+/// Lock or unlock transfers. Owner only, and not while tokenized. Does not
+/// affect `claim_expired`.
 pub fn handler(ctx: Context<LockTransfer>, lock: bool) -> Result<()> {
+    require!(
+        ctx.accounts.name_record.nft_mint.is_none(),
+        SolansError::Tokenized
+    );
     ctx.accounts.name_record.transfer_locked = lock;
     Ok(())
 }

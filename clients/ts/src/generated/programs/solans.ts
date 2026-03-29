@@ -50,12 +50,14 @@ import {
   getClaimExpiredInstructionAsync,
   getInitConfigInstructionAsync,
   getLockTransferInstruction,
+  getRedeemNameInstructionAsync,
   getRegisterNameInstructionAsync,
   getRenewNameInstructionAsync,
   getSetControllerInstruction,
   getSetHostingInstruction,
   getSetResolverInstruction,
   getSetReverseInstructionAsync,
+  getTokenizeNameInstructionAsync,
   getTransferNameInstruction,
   getUpdateConfigInstructionAsync,
   getUpdateRecordInstruction,
@@ -63,12 +65,14 @@ import {
   parseClaimExpiredInstruction,
   parseInitConfigInstruction,
   parseLockTransferInstruction,
+  parseRedeemNameInstruction,
   parseRegisterNameInstruction,
   parseRenewNameInstruction,
   parseSetControllerInstruction,
   parseSetHostingInstruction,
   parseSetResolverInstruction,
   parseSetReverseInstruction,
+  parseTokenizeNameInstruction,
   parseTransferNameInstruction,
   parseUpdateConfigInstruction,
   parseUpdateRecordInstruction,
@@ -80,27 +84,33 @@ import {
   type ParsedClaimExpiredInstruction,
   type ParsedInitConfigInstruction,
   type ParsedLockTransferInstruction,
+  type ParsedRedeemNameInstruction,
   type ParsedRegisterNameInstruction,
   type ParsedRenewNameInstruction,
   type ParsedSetControllerInstruction,
   type ParsedSetHostingInstruction,
   type ParsedSetResolverInstruction,
   type ParsedSetReverseInstruction,
+  type ParsedTokenizeNameInstruction,
   type ParsedTransferNameInstruction,
   type ParsedUpdateConfigInstruction,
   type ParsedUpdateRecordInstruction,
+  type RedeemNameAsyncInput,
   type RegisterNameAsyncInput,
   type RenewNameAsyncInput,
   type SetControllerInput,
   type SetHostingInput,
   type SetResolverInput,
   type SetReverseAsyncInput,
+  type TokenizeNameAsyncInput,
   type TransferNameInput,
   type UpdateConfigAsyncInput,
   type UpdateRecordInput,
 } from "../instructions";
 import {
   findConfigPda,
+  findMasterEditionPda,
+  findMetadataPda,
   findNameRecordPda,
   findReverseRecordPda,
 } from "../pdas";
@@ -162,12 +172,14 @@ export enum SolansInstruction {
   ClaimExpired,
   InitConfig,
   LockTransfer,
+  RedeemName,
   RegisterName,
   RenewName,
   SetController,
   SetHosting,
   SetResolver,
   SetReverse,
+  TokenizeName,
   TransferName,
   UpdateConfig,
   UpdateRecord,
@@ -220,6 +232,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.LockTransfer;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([54, 86, 206, 50, 162, 148, 156, 25]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.RedeemName;
   }
   if (
     containsBytes(
@@ -291,6 +314,17 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([161, 164, 31, 49, 167, 4, 117, 23]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.TokenizeName;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([32, 215, 182, 130, 12, 106, 157, 75]),
       ),
       0,
@@ -342,6 +376,9 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.LockTransfer;
     } & ParsedLockTransferInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.RedeemName;
+    } & ParsedRedeemNameInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.RegisterName;
     } & ParsedRegisterNameInstruction<TProgram>)
   | ({
@@ -359,6 +396,9 @@ export type ParsedSolansInstruction<
   | ({
       instructionType: SolansInstruction.SetReverse;
     } & ParsedSetReverseInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.TokenizeName;
+    } & ParsedTokenizeNameInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.TransferName;
     } & ParsedTransferNameInstruction<TProgram>)
@@ -402,6 +442,13 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseLockTransferInstruction(instruction),
       };
     }
+    case SolansInstruction.RedeemName: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.RedeemName,
+        ...parseRedeemNameInstruction(instruction),
+      };
+    }
     case SolansInstruction.RegisterName: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -442,6 +489,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.SetReverse,
         ...parseSetReverseInstruction(instruction),
+      };
+    }
+    case SolansInstruction.TokenizeName: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.TokenizeName,
+        ...parseTokenizeNameInstruction(instruction),
       };
     }
     case SolansInstruction.TransferName: {
@@ -506,6 +560,10 @@ export type SolansPluginInstructions = {
   lockTransfer: (
     input: LockTransferInput,
   ) => ReturnType<typeof getLockTransferInstruction> & SelfPlanAndSendFunctions;
+  redeemName: (
+    input: RedeemNameAsyncInput,
+  ) => ReturnType<typeof getRedeemNameInstructionAsync> &
+    SelfPlanAndSendFunctions;
   registerName: (
     input: MakeOptional<RegisterNameAsyncInput, "payer">,
   ) => ReturnType<typeof getRegisterNameInstructionAsync> &
@@ -528,6 +586,10 @@ export type SolansPluginInstructions = {
     input: SetReverseAsyncInput,
   ) => ReturnType<typeof getSetReverseInstructionAsync> &
     SelfPlanAndSendFunctions;
+  tokenizeName: (
+    input: TokenizeNameAsyncInput,
+  ) => ReturnType<typeof getTokenizeNameInstructionAsync> &
+    SelfPlanAndSendFunctions;
   transferName: (
     input: TransferNameInput,
   ) => ReturnType<typeof getTransferNameInstruction> & SelfPlanAndSendFunctions;
@@ -542,6 +604,8 @@ export type SolansPluginInstructions = {
 
 export type SolansPluginPdas = {
   config: typeof findConfigPda;
+  metadata: typeof findMetadataPda;
+  masterEdition: typeof findMasterEditionPda;
   nameRecord: typeof findNameRecordPda;
   reverseRecord: typeof findReverseRecordPda;
 };
@@ -582,6 +646,11 @@ export function solansProgram() {
               client,
               getLockTransferInstruction(input),
             ),
+          redeemName: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getRedeemNameInstructionAsync(input),
+            ),
           registerName: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -618,6 +687,11 @@ export function solansProgram() {
               client,
               getSetReverseInstructionAsync(input),
             ),
+          tokenizeName: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getTokenizeNameInstructionAsync(input),
+            ),
           transferName: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -636,6 +710,8 @@ export function solansProgram() {
         },
         pdas: {
           config: findConfigPda,
+          metadata: findMetadataPda,
+          masterEdition: findMasterEditionPda,
           nameRecord: findNameRecordPda,
           reverseRecord: findReverseRecordPda,
         },

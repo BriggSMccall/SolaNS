@@ -91,6 +91,13 @@ export type NameRecord = {
   transferLocked: boolean;
   /** Whether the owner has set a reverse record pointing here. */
   reverseSet: boolean;
+  /**
+   * The NFT mint when the name is tokenized (`Some`), else `None`. While
+   * tokenized, holdership of this mint — not the `owner` field — is what
+   * authorizes record-level changes; structural changes require `redeem_name`
+   * first. The PDA remains the canonical record (expiry, records live here).
+   */
+  nftMint: Option<Address>;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -118,6 +125,13 @@ export type NameRecordArgs = {
   transferLocked: boolean;
   /** Whether the owner has set a reverse record pointing here. */
   reverseSet: boolean;
+  /**
+   * The NFT mint when the name is tokenized (`Some`), else `None`. While
+   * tokenized, holdership of this mint — not the `owner` field — is what
+   * authorizes record-level changes; structural changes require `redeem_name`
+   * first. The PDA remains the canonical record (expiry, records live here).
+   */
+  nftMint: OptionOrNullable<Address>;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -143,6 +157,7 @@ export function getNameRecordEncoder(): Encoder<NameRecordArgs> {
       ],
       ["transferLocked", getBooleanEncoder()],
       ["reverseSet", getBooleanEncoder()],
+      ["nftMint", getOptionEncoder(getAddressEncoder())],
       ["bump", getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: NAME_RECORD_DISCRIMINATOR }),
@@ -167,6 +182,7 @@ export function getNameRecordDecoder(): Decoder<NameRecord> {
     ],
     ["transferLocked", getBooleanDecoder()],
     ["reverseSet", getBooleanDecoder()],
+    ["nftMint", getOptionDecoder(getAddressDecoder())],
     ["bump", getU8Decoder()],
   ]);
 }

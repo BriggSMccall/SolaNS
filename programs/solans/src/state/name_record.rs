@@ -43,6 +43,11 @@ pub struct NameRecord {
     pub transfer_locked: bool,
     /// Whether the owner has set a reverse record pointing here.
     pub reverse_set: bool,
+    /// The NFT mint when the name is tokenized (`Some`), else `None`. While
+    /// tokenized, holdership of this mint — not the `owner` field — is what
+    /// authorizes record-level changes; structural changes require `redeem_name`
+    /// first. The PDA remains the canonical record (expiry, records live here).
+    pub nft_mint: Option<Pubkey>,
     /// Canonical PDA bump.
     pub bump: u8,
 }

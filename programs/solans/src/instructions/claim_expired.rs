@@ -88,5 +88,8 @@ pub fn handler(ctx: Context<ClaimExpired>, name: String, tld: String, years: u16
     nr.hosting_ref = None;
     nr.transfer_locked = false;
     nr.reverse_set = false;
+    // A lapsed tokenized name's NFT is orphaned: the PDA is reclaimed here, so
+    // the old NFT no longer controls anything (a resolver round-trip ignores it).
+    nr.nft_mint = None;
     Ok(())
 }

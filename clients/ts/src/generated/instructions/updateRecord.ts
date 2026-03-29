@@ -36,6 +36,7 @@ import {
   type InstructionWithData,
   type Option,
   type OptionOrNullable,
+  type ReadonlyAccount,
   type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
@@ -61,6 +62,7 @@ export type UpdateRecordInstruction<
   TProgram extends string = typeof SOLANS_PROGRAM_ADDRESS,
   TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountNameRecord extends string | AccountMeta<string> = string,
+  TAccountNftTokenAccount extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -73,6 +75,9 @@ export type UpdateRecordInstruction<
       TAccountNameRecord extends string
         ? WritableAccount<TAccountNameRecord>
         : TAccountNameRecord,
+      TAccountNftTokenAccount extends string
+        ? ReadonlyAccount<TAccountNftTokenAccount>
+        : TAccountNftTokenAccount,
       ...TRemainingAccounts,
     ]
   >;
@@ -128,9 +133,16 @@ export function getUpdateRecordInstructionDataCodec(): Codec<
 export type UpdateRecordInput<
   TAccountAuthority extends string = string,
   TAccountNameRecord extends string = string,
+  TAccountNftTokenAccount extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   nameRecord: Address<TAccountNameRecord>;
+  /**
+   * Proof of NFT holdership, required only while the name is tokenized: the
+   * holder (not the stale `owner`) manages records — i.e. a dynamic NFT.
+   * Omitted (`None`) for non-tokenized names. Validated in `name_authority_ok`.
+   */
+  nftTokenAccount?: Address<TAccountNftTokenAccount>;
   key: UpdateRecordInstructionDataArgs["key"];
   value: UpdateRecordInstructionDataArgs["value"];
 };
@@ -138,14 +150,20 @@ export type UpdateRecordInput<
 export function getUpdateRecordInstruction<
   TAccountAuthority extends string,
   TAccountNameRecord extends string,
+  TAccountNftTokenAccount extends string,
   TProgramAddress extends Address = typeof SOLANS_PROGRAM_ADDRESS,
 >(
-  input: UpdateRecordInput<TAccountAuthority, TAccountNameRecord>,
+  input: UpdateRecordInput<
+    TAccountAuthority,
+    TAccountNameRecord,
+    TAccountNftTokenAccount
+  >,
   config?: { programAddress?: TProgramAddress },
 ): UpdateRecordInstruction<
   TProgramAddress,
   TAccountAuthority,
-  TAccountNameRecord
+  TAccountNameRecord,
+  TAccountNftTokenAccount
 > {
   // Program address.
   const programAddress = config?.programAddress ?? SOLANS_PROGRAM_ADDRESS;
@@ -154,6 +172,10 @@ export function getUpdateRecordInstruction<
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: false },
     nameRecord: { value: input.nameRecord ?? null, isWritable: true },
+    nftTokenAccount: {
+      value: input.nftTokenAccount ?? null,
+      isWritable: false,
+    },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -168,6 +190,7 @@ export function getUpdateRecordInstruction<
     accounts: [
       getAccountMeta("authority", accounts.authority),
       getAccountMeta("nameRecord", accounts.nameRecord),
+      getAccountMeta("nftTokenAccount", accounts.nftTokenAccount),
     ],
     data: getUpdateRecordInstructionDataEncoder().encode(
       args as UpdateRecordInstructionDataArgs,
@@ -176,7 +199,8 @@ export function getUpdateRecordInstruction<
   } as UpdateRecordInstruction<
     TProgramAddress,
     TAccountAuthority,
-    TAccountNameRecord
+    TAccountNameRecord,
+    TAccountNftTokenAccount
   >);
 }
 
@@ -188,6 +212,12 @@ export type ParsedUpdateRecordInstruction<
   accounts: {
     authority: TAccountMetas[0];
     nameRecord: TAccountMetas[1];
+    /**
+     * Proof of NFT holdership, required only while the name is tokenized: the
+     * holder (not the stale `owner`) manages records — i.e. a dynamic NFT.
+     * Omitted (`None`) for non-tokenized names. Validated in `name_authority_ok`.
+     */
+    nftTokenAccount?: TAccountMetas[2] | undefined;
   };
   data: UpdateRecordInstructionData;
 };
@@ -200,12 +230,12 @@ export function parseUpdateRecordInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUpdateRecordInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
+  if (instruction.accounts.length < 3) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 2,
+        expectedAccountMetas: 3,
       },
     );
   }
@@ -215,9 +245,19 @@ export function parseUpdateRecordInstruction<
     accountIndex += 1;
     return accountMeta;
   };
+  const getNextOptionalAccount = () => {
+    const accountMeta = getNextAccount();
+    return accountMeta.address === SOLANS_PROGRAM_ADDRESS
+      ? undefined
+      : accountMeta;
+  };
   return {
     programAddress: instruction.programAddress,
-    accounts: { authority: getNextAccount(), nameRecord: getNextAccount() },
+    accounts: {
+      authority: getNextAccount(),
+      nameRecord: getNextAccount(),
+      nftTokenAccount: getNextOptionalAccount(),
+    },
     data: getUpdateRecordInstructionDataDecoder().decode(instruction.data),
   };
 }

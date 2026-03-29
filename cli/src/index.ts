@@ -1,17 +1,19 @@
 import { Command } from "commander";
-import { address, unwrapOption } from "@solana/kit";
+import { address, generateKeyPairSigner, unwrapOption } from "@solana/kit";
 import {
   findNameRecordPda,
   getBurnNameInstruction,
   getClaimExpiredInstructionAsync,
   getInitConfigInstructionAsync,
   getLockTransferInstruction,
+  getRedeemNameInstructionAsync,
   getRegisterNameInstructionAsync,
   getRenewNameInstructionAsync,
   getSetControllerInstruction,
   getSetHostingInstruction,
   getSetResolverInstruction,
   getSetReverseInstructionAsync,
+  getTokenizeNameInstructionAsync,
   getTransferNameInstruction,
   getUpdateConfigInstructionAsync,
   getUpdateRecordInstruction,
@@ -44,6 +46,17 @@ program
 
 const g = (cmd: Command): GlobalOpts => cmd.optsWithGlobals();
 const nameRecordPda = (name: string) => findNameRecordPda({ nameHash: nameHashFor(name) });
+
+/**
+ * While a name is tokenized, record edits are authorized by NFT holdership, so
+ * `update_record` needs the holder's token account. Returns the signer's ATA for
+ * the NFT mint, or `undefined` when the name is not tokenized (owner-authorized).
+ */
+async function nftTokenAccountIfTokenized(ctx: Ctx, name: string) {
+  const rec = await SolansClient.fromRpc(ctx.rpc).resolve(name);
+  const mint = rec ? unwrapOption(rec.nftMint) : null;
+  return mint ? await ataFor(ctx.signer.address, mint) : undefined;
+}
 
 // --- admin -----------------------------------------------------------------
 program
@@ -179,20 +192,22 @@ program
 const record = program.command("record").description("Manage a name's key -> value records");
 record
   .command("set <name> <key> <value>")
-  .description("Set (upsert) a record")
+  .description("Set (upsert) a record (owner, controller, or NFT holder if tokenized)")
   .action(async (name, key, value, _o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const [nameRecord] = await nameRecordPda(name);
-    const ix = getUpdateRecordInstruction({ authority: ctx.signer, nameRecord, key, value });
+    const nftTokenAccount = await nftTokenAccountIfTokenized(ctx, name);
+    const ix = getUpdateRecordInstruction({ authority: ctx.signer, nameRecord, key, value, nftTokenAccount });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
 record
   .command("delete <name> <key>")
-  .description("Delete a record")
+  .description("Delete a record (owner, controller, or NFT holder if tokenized)")
   .action(async (name, key, _o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const [nameRecord] = await nameRecordPda(name);
-    const ix = getUpdateRecordInstruction({ authority: ctx.signer, nameRecord, key, value: null });
+    const nftTokenAccount = await nftTokenAccountIfTokenized(ctx, name);
+    const ix = getUpdateRecordInstruction({ authority: ctx.signer, nameRecord, key, value: null, nftTokenAccount });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
 
@@ -271,6 +286,46 @@ program
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
 
+// --- NFT (tokenize / redeem) -----------------------------------------------
+program
+  .command("tokenize <name>")
+  .description("Mint the name as a tradeable 1-of-1 NFT (owner only)")
+  .action(async (name, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const { name: label, tld, hash } = nameParts(name);
+    const [nameRecord] = await findNameRecordPda({ nameHash: hash });
+    // A fresh mint keypair signs its own creation; codama derives the ATA,
+    // metadata, master-edition, and program accounts from the name's seeds.
+    const mint = await generateKeyPairSigner();
+    const ix = await getTokenizeNameInstructionAsync({
+      owner: ctx.signer,
+      nameRecord,
+      mint,
+      name: label,
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(`  ${label}.${tld} tokenized -> NFT mint ${mint.address}`);
+  });
+
+program
+  .command("redeem <name>")
+  .description("Burn the name's NFT and restore direct ownership (NFT holder)")
+  .action(async (name, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const [nameRecord] = await nameRecordPda(name);
+    const rec = await SolansClient.fromRpc(ctx.rpc).resolve(name);
+    const mint = rec ? unwrapOption(rec.nftMint) : null;
+    if (!mint) throw new Error(`${name} is not tokenized`);
+    const ix = await getRedeemNameInstructionAsync({
+      redeemer: ctx.signer,
+      nameRecord,
+      mint,
+      tokenAccount: await ataFor(ctx.signer.address, mint),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(`  ${name} redeemed -> owner ${ctx.signer.address}`);
+  });
+
 // --- reads -----------------------------------------------------------------
 async function showRecord(ctx: Ctx, name: string, full: boolean) {
   const { name: label, tld, hash } = nameParts(name);
@@ -291,6 +346,8 @@ async function showRecord(ctx: Ctx, name: string, full: boolean) {
     reverseSet: d.reverseSet,
     resolver: unwrapOption(d.resolver),
     hostingRef: unwrapOption(d.hostingRef),
+    tokenized: unwrapOption(d.nftMint) !== null,
+    nftMint: unwrapOption(d.nftMint),
     records: d.records.map((r) => ({ key: r.key, value: r.value })),
   };
   if (full) {
@@ -309,8 +366,10 @@ async function showRecord(ctx: Ctx, name: string, full: boolean) {
     console.log(`  locked:     ${d.transferLocked}   reverseSet: ${d.reverseSet}`);
     const resolver = unwrapOption(d.resolver);
     const hosting = unwrapOption(d.hostingRef);
+    const nftMint = unwrapOption(d.nftMint);
     if (resolver) console.log(`  resolver:   ${resolver}`);
     if (hosting) console.log(`  hosting:    ${hosting}`);
+    if (nftMint) console.log(`  tokenized:  NFT mint ${nftMint}`);
     if (d.records.length === 0) console.log(`  records:    (none)`);
     else for (const r of d.records) console.log(`  record:     ${r.key} = ${r.value}`);
   }

@@ -31,6 +31,7 @@ pub struct SetReverse<'info> {
 /// `name` label is verified against the forward record's hash before it is stored.
 pub fn handler(ctx: Context<SetReverse>, name: String) -> Result<()> {
     let nr = &ctx.accounts.name_record;
+    require!(nr.nft_mint.is_none(), SolansError::Tokenized);
     require!(
         compute_name_hash(&name, &nr.tld) == nr.name_hash,
         SolansError::NameMismatch

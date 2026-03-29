@@ -97,6 +97,7 @@ pub fn handler(
     nr.hosting_ref = None;
     nr.transfer_locked = false;
     nr.reverse_set = false;
+    nr.nft_mint = None;
     nr.bump = ctx.bumps.name_record;
     Ok(())
 }

@@ -18,6 +18,7 @@ const sampleRecord = {
   hostingRef: some("ipfs://Qm"),
   transferLocked: false,
   reverseSet: false,
+  nftMint: none(),
   bump: 255,
 } as unknown as NameRecord;
 

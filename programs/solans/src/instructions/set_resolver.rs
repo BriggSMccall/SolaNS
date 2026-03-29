@@ -10,8 +10,13 @@ pub struct SetResolver<'info> {
     pub name_record: Account<'info, NameRecord>,
 }
 
-/// Set (`Some`) or clear (`None`) a custom resolver program for the name. Owner only.
+/// Set (`Some`) or clear (`None`) a custom resolver program for the name. Owner
+/// only, and not while tokenized (redeem first).
 pub fn handler(ctx: Context<SetResolver>, resolver: Option<Pubkey>) -> Result<()> {
+    require!(
+        ctx.accounts.name_record.nft_mint.is_none(),
+        SolansError::Tokenized
+    );
     ctx.accounts.name_record.resolver = resolver;
     Ok(())
 }

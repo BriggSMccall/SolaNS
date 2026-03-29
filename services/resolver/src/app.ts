@@ -20,6 +20,8 @@ function serialize(input: string, d: NameRecord) {
     reverseSet: d.reverseSet,
     resolver: unwrapOption(d.resolver),
     hostingRef: unwrapOption(d.hostingRef),
+    nftMint: unwrapOption(d.nftMint),
+    tokenized: unwrapOption(d.nftMint) !== null,
     records: d.records.map((r) => ({ key: r.key, value: r.value })),
   };
 }

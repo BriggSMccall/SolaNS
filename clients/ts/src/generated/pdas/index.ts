@@ -7,5 +7,7 @@
  */
 
 export * from "./config";
+export * from "./masterEdition";
+export * from "./metadata";
 export * from "./nameRecord";
 export * from "./reverseRecord";

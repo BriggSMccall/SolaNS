@@ -53,6 +53,7 @@ import {
   getRedeemNameInstructionAsync,
   getRegisterNameInstructionAsync,
   getRenewNameInstructionAsync,
+  getRevokeSubdomainInstruction,
   getSetControllerInstruction,
   getSetHostingInstruction,
   getSetResolverInstruction,
@@ -61,6 +62,7 @@ import {
   getTransferNameInstruction,
   getUpdateConfigInstructionAsync,
   getUpdateRecordInstruction,
+  getWrapSubdomainInstructionAsync,
   parseBurnNameInstruction,
   parseClaimExpiredInstruction,
   parseInitConfigInstruction,
@@ -68,6 +70,7 @@ import {
   parseRedeemNameInstruction,
   parseRegisterNameInstruction,
   parseRenewNameInstruction,
+  parseRevokeSubdomainInstruction,
   parseSetControllerInstruction,
   parseSetHostingInstruction,
   parseSetResolverInstruction,
@@ -76,6 +79,7 @@ import {
   parseTransferNameInstruction,
   parseUpdateConfigInstruction,
   parseUpdateRecordInstruction,
+  parseWrapSubdomainInstruction,
   type BurnNameInput,
   type ClaimExpiredAsyncInput,
   type InitConfigAsyncInput,
@@ -87,6 +91,7 @@ import {
   type ParsedRedeemNameInstruction,
   type ParsedRegisterNameInstruction,
   type ParsedRenewNameInstruction,
+  type ParsedRevokeSubdomainInstruction,
   type ParsedSetControllerInstruction,
   type ParsedSetHostingInstruction,
   type ParsedSetResolverInstruction,
@@ -95,9 +100,11 @@ import {
   type ParsedTransferNameInstruction,
   type ParsedUpdateConfigInstruction,
   type ParsedUpdateRecordInstruction,
+  type ParsedWrapSubdomainInstruction,
   type RedeemNameAsyncInput,
   type RegisterNameAsyncInput,
   type RenewNameAsyncInput,
+  type RevokeSubdomainInput,
   type SetControllerInput,
   type SetHostingInput,
   type SetResolverInput,
@@ -106,6 +113,7 @@ import {
   type TransferNameInput,
   type UpdateConfigAsyncInput,
   type UpdateRecordInput,
+  type WrapSubdomainAsyncInput,
 } from "../instructions";
 import {
   findConfigPda,
@@ -175,6 +183,7 @@ export enum SolansInstruction {
   RedeemName,
   RegisterName,
   RenewName,
+  RevokeSubdomain,
   SetController,
   SetHosting,
   SetResolver,
@@ -183,6 +192,7 @@ export enum SolansInstruction {
   TransferName,
   UpdateConfig,
   UpdateRecord,
+  WrapSubdomain,
 }
 
 export function identifySolansInstruction(
@@ -265,6 +275,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.RenewName;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([161, 15, 96, 214, 145, 88, 83, 118]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.RevokeSubdomain;
   }
   if (
     containsBytes(
@@ -354,6 +375,17 @@ export function identifySolansInstruction(
   ) {
     return SolansInstruction.UpdateRecord;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([176, 182, 82, 241, 229, 46, 229, 5]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.WrapSubdomain;
+  }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
     { instructionData: data, programName: "solans" },
@@ -385,6 +417,9 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.RenewName;
     } & ParsedRenewNameInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.RevokeSubdomain;
+    } & ParsedRevokeSubdomainInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.SetController;
     } & ParsedSetControllerInstruction<TProgram>)
   | ({
@@ -407,7 +442,10 @@ export type ParsedSolansInstruction<
     } & ParsedUpdateConfigInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.UpdateRecord;
-    } & ParsedUpdateRecordInstruction<TProgram>);
+    } & ParsedUpdateRecordInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.WrapSubdomain;
+    } & ParsedWrapSubdomainInstruction<TProgram>);
 
 export function parseSolansInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
@@ -461,6 +499,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.RenewName,
         ...parseRenewNameInstruction(instruction),
+      };
+    }
+    case SolansInstruction.RevokeSubdomain: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.RevokeSubdomain,
+        ...parseRevokeSubdomainInstruction(instruction),
       };
     }
     case SolansInstruction.SetController: {
@@ -519,6 +564,13 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseUpdateRecordInstruction(instruction),
       };
     }
+    case SolansInstruction.WrapSubdomain: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.WrapSubdomain,
+        ...parseWrapSubdomainInstruction(instruction),
+      };
+    }
     default:
       throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
@@ -572,6 +624,10 @@ export type SolansPluginInstructions = {
     input: MakeOptional<RenewNameAsyncInput, "payer">,
   ) => ReturnType<typeof getRenewNameInstructionAsync> &
     SelfPlanAndSendFunctions;
+  revokeSubdomain: (
+    input: RevokeSubdomainInput,
+  ) => ReturnType<typeof getRevokeSubdomainInstruction> &
+    SelfPlanAndSendFunctions;
   setController: (
     input: SetControllerInput,
   ) => ReturnType<typeof getSetControllerInstruction> &
@@ -600,6 +656,10 @@ export type SolansPluginInstructions = {
   updateRecord: (
     input: UpdateRecordInput,
   ) => ReturnType<typeof getUpdateRecordInstruction> & SelfPlanAndSendFunctions;
+  wrapSubdomain: (
+    input: WrapSubdomainAsyncInput,
+  ) => ReturnType<typeof getWrapSubdomainInstructionAsync> &
+    SelfPlanAndSendFunctions;
 };
 
 export type SolansPluginPdas = {
@@ -667,6 +727,11 @@ export function solansProgram() {
                 payer: input.payer ?? client.payer,
               }),
             ),
+          revokeSubdomain: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getRevokeSubdomainInstruction(input),
+            ),
           setController: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -706,6 +771,11 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getUpdateRecordInstruction(input),
+            ),
+          wrapSubdomain: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getWrapSubdomainInstructionAsync(input),
             ),
         },
         pdas: {

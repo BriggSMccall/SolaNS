@@ -1,4 +1,4 @@
-import { fetchEncodedAccount, type Address, type MaybeEncodedAccount } from "@solana/kit";
+import { fetchEncodedAccount, unwrapOption, type Address, type MaybeEncodedAccount } from "@solana/kit";
 import {
   decodeNameRecord,
   decodeReverseRecord,
@@ -31,11 +31,30 @@ export class SolansClient {
     return new SolansClient(fetchAccount);
   }
 
-  /** Resolve a name (`"alex.sol"`, `"alex.chain"`, or bare `"alex"`) to its record, or null. */
+  /**
+   * Resolve a name or subdomain path (`"alex.sol"`, `"alex.chain"`, bare
+   * `"alex"`, or `"pay.alex.sol"`) to its record, or null.
+   *
+   * For a subdomain, the **parent chain is validated**: every ancestor PDA must
+   * still exist and its `registeredAt` must match what the child captured. A
+   * burned parent (PDA gone) or a claimed/re-registered parent (new
+   * `registeredAt`) invalidates the whole subtree → null.
+   */
   async resolve(name: string): Promise<NameRecord | null> {
     const [pda] = await findNameRecord(name);
     const acct = await this.fetchAccount(pda);
-    return acct.exists ? decodeNameRecord(acct).data : null;
+    if (!acct.exists) return null;
+    const leaf = decodeNameRecord(acct).data;
+
+    let cursor: NameRecord = leaf;
+    for (let parent = unwrapOption(cursor.parent); parent !== null; parent = unwrapOption(cursor.parent)) {
+      const pacct = await this.fetchAccount(parent);
+      if (!pacct.exists) return null; // parent burned -> subtree dead
+      const prec = decodeNameRecord(pacct).data;
+      if (prec.registeredAt !== cursor.parentRegisteredAt) return null; // re-registered/claimed
+      cursor = prec;
+    }
+    return leaf;
   }
 
   /** All key→value records for a name (empty array if unregistered). */

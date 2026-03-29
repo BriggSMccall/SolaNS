@@ -52,6 +52,14 @@ export const SOLANS_ERROR__NOT_ADMIN = 0x1780; // 6016
 export const SOLANS_ERROR__TOKENIZED = 0x1781; // 6017
 /** InvalidNftMint: Provided mint is not this name's NFT */
 export const SOLANS_ERROR__INVALID_NFT_MINT = 0x1782; // 6018
+/** TooDeep: Subdomain depth exceeds the maximum */
+export const SOLANS_ERROR__TOO_DEEP = 0x1783; // 6019
+/** ParentExpired: Parent name has expired */
+export const SOLANS_ERROR__PARENT_EXPIRED = 0x1784; // 6020
+/** NotParent: Account is not a subdomain of the provided parent */
+export const SOLANS_ERROR__NOT_PARENT = 0x1785; // 6021
+/** Subdomain: Operation is not supported for a subdomain */
+export const SOLANS_ERROR__SUBDOMAIN = 0x1786; // 6022
 
 export type SolansError =
   | typeof SOLANS_ERROR__INVALID_MINT
@@ -68,9 +76,13 @@ export type SolansError =
   | typeof SOLANS_ERROR__NOT_AUTHORIZED
   | typeof SOLANS_ERROR__NOT_EXPIRED
   | typeof SOLANS_ERROR__NOT_OWNER
+  | typeof SOLANS_ERROR__NOT_PARENT
+  | typeof SOLANS_ERROR__PARENT_EXPIRED
   | typeof SOLANS_ERROR__RECORD_NOT_FOUND
   | typeof SOLANS_ERROR__RECORD_TOO_LONG
+  | typeof SOLANS_ERROR__SUBDOMAIN
   | typeof SOLANS_ERROR__TOKENIZED
+  | typeof SOLANS_ERROR__TOO_DEEP
   | typeof SOLANS_ERROR__TOO_MANY_RECORDS
   | typeof SOLANS_ERROR__TRANSFER_LOCKED;
 
@@ -91,9 +103,13 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__NOT_AUTHORIZED]: `Signer is not the owner or controller of this name`,
     [SOLANS_ERROR__NOT_EXPIRED]: `Name is not past its expiration + grace period`,
     [SOLANS_ERROR__NOT_OWNER]: `Signer is not the owner of this name`,
+    [SOLANS_ERROR__NOT_PARENT]: `Account is not a subdomain of the provided parent`,
+    [SOLANS_ERROR__PARENT_EXPIRED]: `Parent name has expired`,
     [SOLANS_ERROR__RECORD_NOT_FOUND]: `Record key not found`,
     [SOLANS_ERROR__RECORD_TOO_LONG]: `Record key or value exceeds the maximum length`,
+    [SOLANS_ERROR__SUBDOMAIN]: `Operation is not supported for a subdomain`,
     [SOLANS_ERROR__TOKENIZED]: `Name is tokenized as an NFT; redeem it first`,
+    [SOLANS_ERROR__TOO_DEEP]: `Subdomain depth exceeds the maximum`,
     [SOLANS_ERROR__TOO_MANY_RECORDS]: `Record store is full`,
     [SOLANS_ERROR__TRANSFER_LOCKED]: `Name transfer is locked`,
   };

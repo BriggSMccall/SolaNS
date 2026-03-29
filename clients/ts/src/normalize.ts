@@ -11,6 +11,9 @@ export const TLD = DEFAULT_TLD;
 /** DNS label cap, mirrors NAME_MAX_LEN in the program. */
 export const NAME_MAX_LEN = 63;
 
+/** Deepest subdomain level, mirrors MAX_SUBDOMAIN_DEPTH in the program. */
+export const MAX_SUBDOMAIN_DEPTH = 4;
+
 const LABEL = /^[a-z0-9-]+$/;
 
 function isAllowedTld(t: string): t is Tld {
@@ -58,6 +61,30 @@ export function parseName(input: string, tldOverride?: string): { name: string; 
   }
   if (tldOverride) tld = validateTld(tldOverride);
   return { name: validateLabel(label, input), tld: tld as Tld };
+}
+
+/**
+ * Parse a possibly-dotted name (`"pay.alex.sol"`, `"alex.sol"`, `"alex"`) into
+ * **leaf-first** labels + tld. A single label is a top-level name; 2+ labels are
+ * a subdomain path. Each label is validated; the path depth is capped to
+ * {@link MAX_SUBDOMAIN_DEPTH}. Used for subdomain ops and multi-label resolution.
+ */
+export function parsePath(input: string, tldOverride?: string): { labels: string[]; tld: Tld } {
+  const trimmed = input.trim().toLowerCase();
+  let rest = trimmed;
+  let tld: string = DEFAULT_TLD;
+  const dot = trimmed.lastIndexOf(".");
+  if (dot > 0 && isAllowedTld(trimmed.slice(dot + 1))) {
+    rest = trimmed.slice(0, dot);
+    tld = trimmed.slice(dot + 1);
+  }
+  if (tldOverride) tld = validateTld(tldOverride);
+  const labels = rest.split("."); // leaf-first (e.g. ["pay", "alex"])
+  if (labels.length - 1 > MAX_SUBDOMAIN_DEPTH) {
+    throw new Error(`Subdomain too deep (max ${MAX_SUBDOMAIN_DEPTH} levels): "${input}"`);
+  }
+  for (const l of labels) validateLabel(l, input);
+  return { labels, tld: tld as Tld };
 }
 
 /** Normalize raw input to its canonical label (drops any allowed TLD suffix). */

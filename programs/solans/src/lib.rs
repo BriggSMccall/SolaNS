@@ -115,6 +115,18 @@ pub mod solans {
         instructions::redeem_name::handler(ctx)
     }
 
+    pub fn wrap_subdomain(
+        ctx: Context<WrapSubdomain>,
+        label: String,
+        name_hash: [u8; 32],
+    ) -> Result<()> {
+        instructions::wrap_subdomain::handler(ctx, label, name_hash)
+    }
+
+    pub fn revoke_subdomain(ctx: Context<RevokeSubdomain>) -> Result<()> {
+        instructions::revoke_subdomain::handler(ctx)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_config(
         ctx: Context<UpdateConfig>,

@@ -19,6 +19,9 @@ const sampleRecord = {
   transferLocked: false,
   reverseSet: false,
   nftMint: none(),
+  parent: none(),
+  parentRegisteredAt: 0n,
+  depth: 0,
   bump: 255,
 } as unknown as NameRecord;
 

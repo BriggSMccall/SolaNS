@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { address, generateKeyPairSigner, unwrapOption } from "@solana/kit";
 import {
+  computeSubdomainHash,
   findNameRecordPda,
   getBurnNameInstruction,
   getClaimExpiredInstructionAsync,
@@ -9,6 +10,7 @@ import {
   getRedeemNameInstructionAsync,
   getRegisterNameInstructionAsync,
   getRenewNameInstructionAsync,
+  getRevokeSubdomainInstruction,
   getSetControllerInstruction,
   getSetHostingInstruction,
   getSetResolverInstruction,
@@ -17,7 +19,9 @@ import {
   getTransferNameInstruction,
   getUpdateConfigInstructionAsync,
   getUpdateRecordInstruction,
+  getWrapSubdomainInstructionAsync,
   nameHashFor,
+  nameInfo,
   nameParts,
   normalizeName,
 } from "@solans/client";
@@ -326,18 +330,55 @@ program
     console.log(`  ${name} redeemed -> owner ${ctx.signer.address}`);
   });
 
+// --- subdomains ------------------------------------------------------------
+const subdomain = program.command("subdomain").description("Manage subdomains (pay.alex.sol)");
+subdomain
+  .command("create <parent> <label>")
+  .description("Create a subdomain under a parent name (parent owner)")
+  .option("--owner <address>", "subdomain owner (default: signer)")
+  .action(async (parent, label, o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const p = nameInfo(parent);
+    const childLabel = label.toLowerCase();
+    const childHash = computeSubdomainHash(p.hash, childLabel);
+    const [parentName] = await findNameRecordPda({ nameHash: p.hash });
+    const ix = await getWrapSubdomainInstructionAsync({
+      owner: ctx.signer,
+      subdomainOwner: o.owner ? address(o.owner) : ctx.signer.address,
+      parentName,
+      label: childLabel,
+      nameHash: childHash,
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    const [childPda] = await findNameRecordPda({ nameHash: childHash });
+    console.log(`  ${childLabel}.${p.labels.join(".")}.${p.tld} -> ${childPda}`);
+  });
+subdomain
+  .command("revoke <parent> <label>")
+  .description("Revoke (close) a subdomain and reclaim its rent (parent owner)")
+  .action(async (parent, label, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const p = nameInfo(parent);
+    const childHash = computeSubdomainHash(p.hash, label.toLowerCase());
+    const [parentName] = await findNameRecordPda({ nameHash: p.hash });
+    const [nameRecord] = await findNameRecordPda({ nameHash: childHash });
+    const ix = getRevokeSubdomainInstruction({ owner: ctx.signer, parentName, nameRecord });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
 // --- reads -----------------------------------------------------------------
 async function showRecord(ctx: Ctx, name: string, full: boolean) {
-  const { name: label, tld, hash } = nameParts(name);
-  const [pda] = await findNameRecordPda({ nameHash: hash });
+  const info = nameInfo(name);
+  const fullName = `${info.labels.join(".")}.${info.tld}`;
+  const [pda] = await findNameRecordPda({ nameHash: info.hash });
   const d = await SolansClient.fromRpc(ctx.rpc).resolve(name);
   if (!d) {
-    if (ctx.opts.json) console.log(JSON.stringify({ name: `${label}.${tld}`, registered: false }));
-    else console.log(`${label}.${tld} is not registered`);
+    if (ctx.opts.json) console.log(JSON.stringify({ name: fullName, registered: false }));
+    else console.log(`${fullName} is not registered`);
     return;
   }
   const out: Record<string, unknown> = {
-    name: `${label}.${tld}`,
+    name: fullName,
     pda,
     owner: d.owner,
     controller: unwrapOption(d.controller),
@@ -348,6 +389,8 @@ async function showRecord(ctx: Ctx, name: string, full: boolean) {
     hostingRef: unwrapOption(d.hostingRef),
     tokenized: unwrapOption(d.nftMint) !== null,
     nftMint: unwrapOption(d.nftMint),
+    parent: unwrapOption(d.parent),
+    depth: d.depth,
     records: d.records.map((r) => ({ key: r.key, value: r.value })),
   };
   if (full) {
@@ -367,6 +410,8 @@ async function showRecord(ctx: Ctx, name: string, full: boolean) {
     const resolver = unwrapOption(d.resolver);
     const hosting = unwrapOption(d.hostingRef);
     const nftMint = unwrapOption(d.nftMint);
+    const parent = unwrapOption(d.parent);
+    if (parent) console.log(`  parent:     ${parent}   (depth ${d.depth})`);
     if (resolver) console.log(`  resolver:   ${resolver}`);
     if (hosting) console.log(`  hosting:    ${hosting}`);
     if (nftMint) console.log(`  tokenized:  NFT mint ${nftMint}`);

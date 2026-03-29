@@ -48,6 +48,15 @@ pub struct NameRecord {
     /// authorizes record-level changes; structural changes require `redeem_name`
     /// first. The PDA remains the canonical record (expiry, records live here).
     pub nft_mint: Option<Pubkey>,
+    /// The parent name's PDA when this is a subdomain (`Some`), else `None` for a
+    /// top-level name. Resolution follows this pointer up to the root.
+    pub parent: Option<Pubkey>,
+    /// The parent's `registered_at` captured at creation. Resolution requires it
+    /// still equals the live parent's `registered_at`; a claim or burn+re-register
+    /// rewrites the parent's `registered_at` and so invalidates the whole subtree.
+    pub parent_registered_at: i64,
+    /// Subdomain depth: 0 for a top-level name, +1 per level (capped on creation).
+    pub depth: u8,
     /// Canonical PDA bump.
     pub bump: u8,
 }

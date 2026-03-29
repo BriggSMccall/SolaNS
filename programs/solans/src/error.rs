@@ -40,4 +40,12 @@ pub enum SolansError {
     Tokenized,
     #[msg("Provided mint is not this name's NFT")]
     InvalidNftMint,
+    #[msg("Subdomain depth exceeds the maximum")]
+    TooDeep,
+    #[msg("Parent name has expired")]
+    ParentExpired,
+    #[msg("Account is not a subdomain of the provided parent")]
+    NotParent,
+    #[msg("Operation is not supported for a subdomain")]
+    Subdomain,
 }

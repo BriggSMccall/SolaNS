@@ -8,6 +8,7 @@ pub mod lock_transfer;
 pub mod redeem_name;
 pub mod register_name;
 pub mod renew_name;
+pub mod revoke_subdomain;
 pub mod set_controller;
 pub mod set_hosting;
 pub mod set_resolver;
@@ -16,6 +17,7 @@ pub mod tokenize_name;
 pub mod transfer_name;
 pub mod update_config;
 pub mod update_record;
+pub mod wrap_subdomain;
 
 // Glob re-exports (matches the Anchor convention) so the `#[program]` macro can
 // resolve each instruction's generated `__client_accounts_*` modules at the
@@ -28,6 +30,7 @@ pub use lock_transfer::*;
 pub use redeem_name::*;
 pub use register_name::*;
 pub use renew_name::*;
+pub use revoke_subdomain::*;
 pub use set_controller::*;
 pub use set_hosting::*;
 pub use set_resolver::*;
@@ -36,3 +39,4 @@ pub use tokenize_name::*;
 pub use transfer_name::*;
 pub use update_config::*;
 pub use update_record::*;
+pub use wrap_subdomain::*;

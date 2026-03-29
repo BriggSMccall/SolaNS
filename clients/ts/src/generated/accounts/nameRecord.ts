@@ -98,6 +98,19 @@ export type NameRecord = {
    * first. The PDA remains the canonical record (expiry, records live here).
    */
   nftMint: Option<Address>;
+  /**
+   * The parent name's PDA when this is a subdomain (`Some`), else `None` for a
+   * top-level name. Resolution follows this pointer up to the root.
+   */
+  parent: Option<Address>;
+  /**
+   * The parent's `registered_at` captured at creation. Resolution requires it
+   * still equals the live parent's `registered_at`; a claim or burn+re-register
+   * rewrites the parent's `registered_at` and so invalidates the whole subtree.
+   */
+  parentRegisteredAt: bigint;
+  /** Subdomain depth: 0 for a top-level name, +1 per level (capped on creation). */
+  depth: number;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -132,6 +145,19 @@ export type NameRecordArgs = {
    * first. The PDA remains the canonical record (expiry, records live here).
    */
   nftMint: OptionOrNullable<Address>;
+  /**
+   * The parent name's PDA when this is a subdomain (`Some`), else `None` for a
+   * top-level name. Resolution follows this pointer up to the root.
+   */
+  parent: OptionOrNullable<Address>;
+  /**
+   * The parent's `registered_at` captured at creation. Resolution requires it
+   * still equals the live parent's `registered_at`; a claim or burn+re-register
+   * rewrites the parent's `registered_at` and so invalidates the whole subtree.
+   */
+  parentRegisteredAt: number | bigint;
+  /** Subdomain depth: 0 for a top-level name, +1 per level (capped on creation). */
+  depth: number;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -158,6 +184,9 @@ export function getNameRecordEncoder(): Encoder<NameRecordArgs> {
       ["transferLocked", getBooleanEncoder()],
       ["reverseSet", getBooleanEncoder()],
       ["nftMint", getOptionEncoder(getAddressEncoder())],
+      ["parent", getOptionEncoder(getAddressEncoder())],
+      ["parentRegisteredAt", getI64Encoder()],
+      ["depth", getU8Encoder()],
       ["bump", getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: NAME_RECORD_DISCRIMINATOR }),
@@ -183,6 +212,9 @@ export function getNameRecordDecoder(): Decoder<NameRecord> {
     ["transferLocked", getBooleanDecoder()],
     ["reverseSet", getBooleanDecoder()],
     ["nftMint", getOptionDecoder(getAddressDecoder())],
+    ["parent", getOptionDecoder(getAddressDecoder())],
+    ["parentRegisteredAt", getI64Decoder()],
+    ["depth", getU8Decoder()],
     ["bump", getU8Decoder()],
   ]);
 }

@@ -44,6 +44,13 @@ pub struct ClaimExpired<'info> {
 pub fn handler(ctx: Context<ClaimExpired>, name: String, tld: String, years: u16) -> Result<()> {
     validate_name(&name)?;
     validate_tld(&tld)?;
+    // Subdomains aren't independently claimable — they live and die with the
+    // parent (revoked by the parent owner, not re-registered here). Checked
+    // before the hash match so the rejection is a clear `Subdomain`.
+    require!(
+        ctx.accounts.name_record.parent.is_none(),
+        SolansError::Subdomain
+    );
     require!(
         ctx.accounts.name_record.name_hash == compute_name_hash(&name, &tld),
         SolansError::NameMismatch
@@ -91,5 +98,10 @@ pub fn handler(ctx: Context<ClaimExpired>, name: String, tld: String, years: u16
     // A lapsed tokenized name's NFT is orphaned: the PDA is reclaimed here, so
     // the old NFT no longer controls anything (a resolver round-trip ignores it).
     nr.nft_mint = None;
+    // Rewriting `registered_at` above already invalidates any old subtree; this
+    // record is top-level (guarded above), so keep the subdomain fields cleared.
+    nr.parent = None;
+    nr.parent_registered_at = 0;
+    nr.depth = 0;
     Ok(())
 }

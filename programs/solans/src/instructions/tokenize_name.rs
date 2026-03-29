@@ -80,6 +80,12 @@ pub fn handler(ctx: Context<TokenizeName>, name: String) -> Result<()> {
         ctx.accounts.name_record.nft_mint.is_none(),
         SolansError::Tokenized
     );
+    // Top-level only for now: a subdomain's recursive hash can't be verified
+    // from a flat `name` label, and its NFT name would need the full path.
+    require!(
+        ctx.accounts.name_record.parent.is_none(),
+        SolansError::Subdomain
+    );
     require!(
         compute_name_hash(&name, &ctx.accounts.name_record.tld)
             == ctx.accounts.name_record.name_hash,

@@ -98,6 +98,9 @@ pub fn handler(
     nr.transfer_locked = false;
     nr.reverse_set = false;
     nr.nft_mint = None;
+    nr.parent = None;
+    nr.parent_registered_at = 0;
+    nr.depth = 0;
     nr.bump = ctx.bumps.name_record;
     Ok(())
 }

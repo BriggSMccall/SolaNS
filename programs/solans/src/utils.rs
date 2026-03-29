@@ -73,6 +73,15 @@ pub fn compute_name_hash(name: &str, tld: &str) -> [u8; 32] {
     hashv(&[name.as_bytes(), b".", tld.as_bytes()]).to_bytes()
 }
 
+/// Canonical subdomain hash: `sha256(0x00 || parent_hash || label)`. Recursive on
+/// the parent's hash so the program never needs the parent's full string. The
+/// `0x00` separator makes this preimage space disjoint from top-level names
+/// (whose preimages always start with `[a-z0-9]`), so PDAs can never collide
+/// across schemes or depths. Mirrored byte-for-byte by the client.
+pub fn compute_subdomain_hash(parent_hash: &[u8; 32], label: &str) -> [u8; 32] {
+    hashv(&[&[0u8], parent_hash.as_ref(), label.as_bytes()]).to_bytes()
+}
+
 /// Validate a registration term against config bounds.
 pub fn validate_years(years: u16, min_years: u16, max_years: u16) -> Result<()> {
     require!(

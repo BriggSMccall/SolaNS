@@ -24,12 +24,15 @@ import {
   TOKEN_PROGRAM_ADDRESS,
 } from "@solana-program/token";
 import {
+  computeSubdomainHash,
   decodeConfig,
   decodeNameRecord,
   decodeReverseRecord,
   findNameRecordPda,
   getInitConfigInstructionAsync,
   getRegisterNameInstructionAsync,
+  getWrapSubdomainInstructionAsync,
+  nameInfo,
   nameParts,
   SOLANS_PROGRAM_ADDRESS,
 } from "@solans/client";
@@ -183,6 +186,29 @@ export async function registerName(
   });
   await send(env.svm, payer, [ix]);
   const [pda] = await findNameRecordPda({ nameHash: hash });
+  return pda;
+}
+
+/** Create a subdomain `<label>.<parentInput>` (signer/owner default to env.payer). */
+export async function wrapSubdomain(
+  env: TestEnv,
+  parentInput: string,
+  label: string,
+  opts?: { owner?: Address; signer?: KeyPairSigner },
+): Promise<Address> {
+  const p = nameInfo(parentInput);
+  const childHash = computeSubdomainHash(p.hash, label);
+  const [parentName] = await findNameRecordPda({ nameHash: p.hash });
+  const signer = opts?.signer ?? env.payer;
+  const ix = await getWrapSubdomainInstructionAsync({
+    owner: signer,
+    subdomainOwner: opts?.owner ?? signer.address,
+    parentName,
+    label,
+    nameHash: childHash,
+  });
+  await send(env.svm, signer, [ix]);
+  const [pda] = await findNameRecordPda({ nameHash: childHash });
   return pda;
 }
 

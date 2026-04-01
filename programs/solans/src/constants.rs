@@ -4,6 +4,11 @@
 pub const CONFIG_SEED: &[u8] = b"config";
 pub const NAME_SEED: &[u8] = b"name";
 pub const REVERSE_SEED: &[u8] = b"reverse";
+pub const LISTING_SEED: &[u8] = b"listing";
+
+// Marketplace fee math: basis-point denominator + a hard cap on the fee.
+pub const BPS_DENOMINATOR: u64 = 10_000;
+pub const MAX_FEE_BPS: u16 = 1_000; // 10% ceiling, validated in config
 
 // Name constraints (enforced on-chain over raw bytes).
 pub const NAME_MIN_LEN: usize = 1;

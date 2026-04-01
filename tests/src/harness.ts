@@ -28,8 +28,12 @@ import {
   decodeConfig,
   decodeNameRecord,
   decodeReverseRecord,
+  findConfigPda,
+  findListing,
   findNameRecordPda,
+  getBuyNameInstruction,
   getInitConfigInstructionAsync,
+  getListNameInstruction,
   getRegisterNameInstructionAsync,
   getWrapSubdomainInstructionAsync,
   nameInfo,
@@ -53,7 +57,14 @@ export type TestEnv = {
   payerAta: Address;
   treasury: Address;
   treasuryOwner: Address;
+  /** Wallet that receives native-SOL marketplace fees. */
+  solTreasury: Address;
 };
+
+/** Marketplace fee in basis points configured by `setupEnv` (2%). */
+export const MARKETPLACE_FEE_BPS = 200;
+/** Per-year price for a premium numeric name configured by `setupEnv`. */
+export const PRICE_NUMERIC = 500_000_000n;
 
 /** Build, sign, and send a transaction; throws on on-chain failure. */
 export async function send(
@@ -212,6 +223,49 @@ export async function wrapSubdomain(
   return pda;
 }
 
+/** Native-SOL balance (lamports) of an address. */
+export function solBalance(svm: LiteSVM, addr: Address): bigint {
+  return svm.getBalance(addr) ?? 0n;
+}
+
+/** List `name` for sale; returns the listing PDA. */
+export async function listName(
+  env: TestEnv,
+  name: string,
+  priceLamports: bigint,
+  opts?: { durationSeconds?: bigint; signer?: KeyPairSigner },
+): Promise<Address> {
+  const signer = opts?.signer ?? env.payer;
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(name).hash });
+  const [listing] = await findListing(name);
+  await send(env.svm, signer, [
+    getListNameInstruction({
+      owner: signer,
+      nameRecord,
+      listing,
+      price: priceLamports,
+      durationSeconds: opts?.durationSeconds ?? BigInt(30 * 86_400),
+    }),
+  ]);
+  return listing;
+}
+
+/** Buy `name` as `buyer`, paying `expectedPrice` lamports to `seller`. */
+export async function buyName(
+  env: TestEnv,
+  name: string,
+  buyer: KeyPairSigner,
+  expectedPrice: bigint,
+  seller: Address,
+): Promise<void> {
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(name).hash });
+  const [listing] = await findListing(name);
+  const [config] = await findConfigPda();
+  await send(env.svm, buyer, [
+    getBuyNameInstruction({ buyer, seller, solTreasury: env.solTreasury, config, nameRecord, listing, expectedPrice }),
+  ]);
+}
+
 /** Boot a LiteSVM, load the program, create a 6-decimal mint + funded payer ATA + treasury, init config. */
 export async function setupEnv(opts?: { gracePeriodSeconds?: bigint }): Promise<TestEnv> {
   const svm = new LiteSVM();
@@ -241,7 +295,16 @@ export async function setupEnv(opts?: { gracePeriodSeconds?: bigint }): Promise<
   ]);
   const mint = mintSigner.address;
 
-  const env: TestEnv = { svm, payer, mint, payerAta: mint, treasury: mint, treasuryOwner: mint };
+  const solTreasury = await generateKeyPairSigner();
+  const env: TestEnv = {
+    svm,
+    payer,
+    mint,
+    payerAta: mint,
+    treasury: mint,
+    treasuryOwner: mint,
+    solTreasury: solTreasury.address,
+  };
 
   // Payer ATA with a large balance.
   env.payerAta = await mintTokensTo(env, payer.address, 1_000_000_000_000n);
@@ -270,9 +333,12 @@ export async function setupEnv(opts?: { gracePeriodSeconds?: bigint }): Promise<
       price3: 50_000_000n,
       price4: 10_000_000n,
       price5plus: 1_000_000n,
+      priceNumeric: PRICE_NUMERIC,
       gracePeriodSeconds: opts?.gracePeriodSeconds ?? 7_776_000n,
       minYears: 1,
       maxYears: 10,
+      solTreasury: env.solTreasury,
+      marketplaceFeeBps: MARKETPLACE_FEE_BPS,
     }),
   ]);
 

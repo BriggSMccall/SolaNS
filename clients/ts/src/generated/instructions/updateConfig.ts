@@ -10,6 +10,8 @@ import {
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
+  getAddressDecoder,
+  getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getI64Decoder,
@@ -81,9 +83,12 @@ export type UpdateConfigInstructionData = {
   price3: bigint;
   price4: bigint;
   price5plus: bigint;
+  priceNumeric: bigint;
   gracePeriodSeconds: bigint;
   minYears: number;
   maxYears: number;
+  solTreasury: Address;
+  marketplaceFeeBps: number;
 };
 
 export type UpdateConfigInstructionDataArgs = {
@@ -92,9 +97,12 @@ export type UpdateConfigInstructionDataArgs = {
   price3: number | bigint;
   price4: number | bigint;
   price5plus: number | bigint;
+  priceNumeric: number | bigint;
   gracePeriodSeconds: number | bigint;
   minYears: number;
   maxYears: number;
+  solTreasury: Address;
+  marketplaceFeeBps: number;
 };
 
 export function getUpdateConfigInstructionDataEncoder(): FixedSizeEncoder<UpdateConfigInstructionDataArgs> {
@@ -106,9 +114,12 @@ export function getUpdateConfigInstructionDataEncoder(): FixedSizeEncoder<Update
       ["price3", getU64Encoder()],
       ["price4", getU64Encoder()],
       ["price5plus", getU64Encoder()],
+      ["priceNumeric", getU64Encoder()],
       ["gracePeriodSeconds", getI64Encoder()],
       ["minYears", getU16Encoder()],
       ["maxYears", getU16Encoder()],
+      ["solTreasury", getAddressEncoder()],
+      ["marketplaceFeeBps", getU16Encoder()],
     ]),
     (value) => ({ ...value, discriminator: UPDATE_CONFIG_DISCRIMINATOR }),
   );
@@ -122,9 +133,12 @@ export function getUpdateConfigInstructionDataDecoder(): FixedSizeDecoder<Update
     ["price3", getU64Decoder()],
     ["price4", getU64Decoder()],
     ["price5plus", getU64Decoder()],
+    ["priceNumeric", getU64Decoder()],
     ["gracePeriodSeconds", getI64Decoder()],
     ["minYears", getU16Decoder()],
     ["maxYears", getU16Decoder()],
+    ["solTreasury", getAddressDecoder()],
+    ["marketplaceFeeBps", getU16Decoder()],
   ]);
 }
 
@@ -149,9 +163,12 @@ export type UpdateConfigAsyncInput<
   price3: UpdateConfigInstructionDataArgs["price3"];
   price4: UpdateConfigInstructionDataArgs["price4"];
   price5plus: UpdateConfigInstructionDataArgs["price5plus"];
+  priceNumeric: UpdateConfigInstructionDataArgs["priceNumeric"];
   gracePeriodSeconds: UpdateConfigInstructionDataArgs["gracePeriodSeconds"];
   minYears: UpdateConfigInstructionDataArgs["minYears"];
   maxYears: UpdateConfigInstructionDataArgs["maxYears"];
+  solTreasury: UpdateConfigInstructionDataArgs["solTreasury"];
+  marketplaceFeeBps: UpdateConfigInstructionDataArgs["marketplaceFeeBps"];
 };
 
 export async function getUpdateConfigInstructionAsync<
@@ -209,9 +226,12 @@ export type UpdateConfigInput<
   price3: UpdateConfigInstructionDataArgs["price3"];
   price4: UpdateConfigInstructionDataArgs["price4"];
   price5plus: UpdateConfigInstructionDataArgs["price5plus"];
+  priceNumeric: UpdateConfigInstructionDataArgs["priceNumeric"];
   gracePeriodSeconds: UpdateConfigInstructionDataArgs["gracePeriodSeconds"];
   minYears: UpdateConfigInstructionDataArgs["minYears"];
   maxYears: UpdateConfigInstructionDataArgs["maxYears"];
+  solTreasury: UpdateConfigInstructionDataArgs["solTreasury"];
+  marketplaceFeeBps: UpdateConfigInstructionDataArgs["marketplaceFeeBps"];
 };
 
 export function getUpdateConfigInstruction<

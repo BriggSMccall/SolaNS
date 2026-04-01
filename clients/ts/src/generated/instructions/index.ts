@@ -7,8 +7,11 @@
  */
 
 export * from "./burnName";
+export * from "./buyName";
+export * from "./cancelListing";
 export * from "./claimExpired";
 export * from "./initConfig";
+export * from "./listName";
 export * from "./lockTransfer";
 export * from "./redeemName";
 export * from "./registerName";
@@ -21,5 +24,6 @@ export * from "./setReverse";
 export * from "./tokenizeName";
 export * from "./transferName";
 export * from "./updateConfig";
+export * from "./updateListing";
 export * from "./updateRecord";
 export * from "./wrapSubdomain";

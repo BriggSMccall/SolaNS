@@ -19,6 +19,7 @@ pub fn handler(ctx: Context<SetHosting>, hosting_ref: Option<String>) -> Result<
     let authority = ctx.accounts.authority.key();
     let nr = &mut ctx.accounts.name_record;
     require!(nr.nft_mint.is_none(), SolansError::Tokenized);
+    require!(!nr.listed, SolansError::Listed);
     require!(
         authority == nr.owner || nr.controller == Some(authority),
         SolansError::NotAuthorized

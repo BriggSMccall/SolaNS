@@ -36,10 +36,13 @@ import {
 } from "@solana/kit/program-client-core";
 import {
   getConfigCodec,
+  getListingCodec,
   getNameRecordCodec,
   getReverseRecordCodec,
   type Config,
   type ConfigArgs,
+  type Listing,
+  type ListingArgs,
   type NameRecord,
   type NameRecordArgs,
   type ReverseRecord,
@@ -47,8 +50,11 @@ import {
 } from "../accounts";
 import {
   getBurnNameInstruction,
+  getBuyNameInstructionAsync,
+  getCancelListingInstruction,
   getClaimExpiredInstructionAsync,
   getInitConfigInstructionAsync,
+  getListNameInstruction,
   getLockTransferInstruction,
   getRedeemNameInstructionAsync,
   getRegisterNameInstructionAsync,
@@ -61,11 +67,15 @@ import {
   getTokenizeNameInstructionAsync,
   getTransferNameInstruction,
   getUpdateConfigInstructionAsync,
+  getUpdateListingInstruction,
   getUpdateRecordInstruction,
   getWrapSubdomainInstructionAsync,
   parseBurnNameInstruction,
+  parseBuyNameInstruction,
+  parseCancelListingInstruction,
   parseClaimExpiredInstruction,
   parseInitConfigInstruction,
+  parseListNameInstruction,
   parseLockTransferInstruction,
   parseRedeemNameInstruction,
   parseRegisterNameInstruction,
@@ -78,15 +88,22 @@ import {
   parseTokenizeNameInstruction,
   parseTransferNameInstruction,
   parseUpdateConfigInstruction,
+  parseUpdateListingInstruction,
   parseUpdateRecordInstruction,
   parseWrapSubdomainInstruction,
   type BurnNameInput,
+  type BuyNameAsyncInput,
+  type CancelListingInput,
   type ClaimExpiredAsyncInput,
   type InitConfigAsyncInput,
+  type ListNameInput,
   type LockTransferInput,
   type ParsedBurnNameInstruction,
+  type ParsedBuyNameInstruction,
+  type ParsedCancelListingInstruction,
   type ParsedClaimExpiredInstruction,
   type ParsedInitConfigInstruction,
+  type ParsedListNameInstruction,
   type ParsedLockTransferInstruction,
   type ParsedRedeemNameInstruction,
   type ParsedRegisterNameInstruction,
@@ -99,6 +116,7 @@ import {
   type ParsedTokenizeNameInstruction,
   type ParsedTransferNameInstruction,
   type ParsedUpdateConfigInstruction,
+  type ParsedUpdateListingInstruction,
   type ParsedUpdateRecordInstruction,
   type ParsedWrapSubdomainInstruction,
   type RedeemNameAsyncInput,
@@ -112,6 +130,7 @@ import {
   type TokenizeNameAsyncInput,
   type TransferNameInput,
   type UpdateConfigAsyncInput,
+  type UpdateListingInput,
   type UpdateRecordInput,
   type WrapSubdomainAsyncInput,
 } from "../instructions";
@@ -128,6 +147,7 @@ export const SOLANS_PROGRAM_ADDRESS =
 
 export enum SolansAccount {
   Config,
+  Listing,
   NameRecord,
   ReverseRecord,
 }
@@ -146,6 +166,17 @@ export function identifySolansAccount(
     )
   ) {
     return SolansAccount.Config;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([218, 32, 50, 73, 43, 134, 26, 58]),
+      ),
+      0,
+    )
+  ) {
+    return SolansAccount.Listing;
   }
   if (
     containsBytes(
@@ -177,8 +208,11 @@ export function identifySolansAccount(
 
 export enum SolansInstruction {
   BurnName,
+  BuyName,
+  CancelListing,
   ClaimExpired,
   InitConfig,
+  ListName,
   LockTransfer,
   RedeemName,
   RegisterName,
@@ -191,6 +225,7 @@ export enum SolansInstruction {
   TokenizeName,
   TransferName,
   UpdateConfig,
+  UpdateListing,
   UpdateRecord,
   WrapSubdomain,
 }
@@ -214,6 +249,28 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([51, 244, 250, 246, 119, 54, 246, 23]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.BuyName;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([41, 183, 50, 232, 230, 233, 157, 70]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.CancelListing;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([124, 78, 197, 187, 210, 66, 255, 1]),
       ),
       0,
@@ -231,6 +288,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.InitConfig;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([246, 122, 32, 41, 48, 9, 211, 11]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.ListName;
   }
   if (
     containsBytes(
@@ -368,6 +436,17 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([192, 174, 210, 68, 116, 40, 242, 253]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.UpdateListing;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([54, 194, 108, 162, 199, 12, 5, 60]),
       ),
       0,
@@ -399,11 +478,20 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.BurnName;
     } & ParsedBurnNameInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.BuyName;
+    } & ParsedBuyNameInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.CancelListing;
+    } & ParsedCancelListingInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.ClaimExpired;
     } & ParsedClaimExpiredInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.InitConfig;
     } & ParsedInitConfigInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.ListName;
+    } & ParsedListNameInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.LockTransfer;
     } & ParsedLockTransferInstruction<TProgram>)
@@ -441,6 +529,9 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.UpdateConfig;
     } & ParsedUpdateConfigInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.UpdateListing;
+    } & ParsedUpdateListingInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.UpdateRecord;
     } & ParsedUpdateRecordInstruction<TProgram>)
   | ({
@@ -459,6 +550,20 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseBurnNameInstruction(instruction),
       };
     }
+    case SolansInstruction.BuyName: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.BuyName,
+        ...parseBuyNameInstruction(instruction),
+      };
+    }
+    case SolansInstruction.CancelListing: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.CancelListing,
+        ...parseCancelListingInstruction(instruction),
+      };
+    }
     case SolansInstruction.ClaimExpired: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -471,6 +576,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.InitConfig,
         ...parseInitConfigInstruction(instruction),
+      };
+    }
+    case SolansInstruction.ListName: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.ListName,
+        ...parseListNameInstruction(instruction),
       };
     }
     case SolansInstruction.LockTransfer: {
@@ -557,6 +669,13 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseUpdateConfigInstruction(instruction),
       };
     }
+    case SolansInstruction.UpdateListing: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.UpdateListing,
+        ...parseUpdateListingInstruction(instruction),
+      };
+    }
     case SolansInstruction.UpdateRecord: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -591,6 +710,8 @@ export type SolansPlugin = {
 export type SolansPluginAccounts = {
   config: ReturnType<typeof getConfigCodec> &
     SelfFetchFunctions<ConfigArgs, Config>;
+  listing: ReturnType<typeof getListingCodec> &
+    SelfFetchFunctions<ListingArgs, Listing>;
   nameRecord: ReturnType<typeof getNameRecordCodec> &
     SelfFetchFunctions<NameRecordArgs, NameRecord>;
   reverseRecord: ReturnType<typeof getReverseRecordCodec> &
@@ -601,6 +722,13 @@ export type SolansPluginInstructions = {
   burnName: (
     input: BurnNameInput,
   ) => ReturnType<typeof getBurnNameInstruction> & SelfPlanAndSendFunctions;
+  buyName: (
+    input: BuyNameAsyncInput,
+  ) => ReturnType<typeof getBuyNameInstructionAsync> & SelfPlanAndSendFunctions;
+  cancelListing: (
+    input: CancelListingInput,
+  ) => ReturnType<typeof getCancelListingInstruction> &
+    SelfPlanAndSendFunctions;
   claimExpired: (
     input: ClaimExpiredAsyncInput,
   ) => ReturnType<typeof getClaimExpiredInstructionAsync> &
@@ -609,6 +737,9 @@ export type SolansPluginInstructions = {
     input: InitConfigAsyncInput,
   ) => ReturnType<typeof getInitConfigInstructionAsync> &
     SelfPlanAndSendFunctions;
+  listName: (
+    input: ListNameInput,
+  ) => ReturnType<typeof getListNameInstruction> & SelfPlanAndSendFunctions;
   lockTransfer: (
     input: LockTransferInput,
   ) => ReturnType<typeof getLockTransferInstruction> & SelfPlanAndSendFunctions;
@@ -653,6 +784,10 @@ export type SolansPluginInstructions = {
     input: UpdateConfigAsyncInput,
   ) => ReturnType<typeof getUpdateConfigInstructionAsync> &
     SelfPlanAndSendFunctions;
+  updateListing: (
+    input: UpdateListingInput,
+  ) => ReturnType<typeof getUpdateListingInstruction> &
+    SelfPlanAndSendFunctions;
   updateRecord: (
     input: UpdateRecordInput,
   ) => ReturnType<typeof getUpdateRecordInstruction> & SelfPlanAndSendFunctions;
@@ -685,12 +820,23 @@ export function solansProgram() {
       solans: <SolansPlugin>{
         accounts: {
           config: addSelfFetchFunctions(client, getConfigCodec()),
+          listing: addSelfFetchFunctions(client, getListingCodec()),
           nameRecord: addSelfFetchFunctions(client, getNameRecordCodec()),
           reverseRecord: addSelfFetchFunctions(client, getReverseRecordCodec()),
         },
         instructions: {
           burnName: (input) =>
             addSelfPlanAndSendFunctions(client, getBurnNameInstruction(input)),
+          buyName: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getBuyNameInstructionAsync(input),
+            ),
+          cancelListing: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getCancelListingInstruction(input),
+            ),
           claimExpired: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -701,6 +847,8 @@ export function solansProgram() {
               client,
               getInitConfigInstructionAsync(input),
             ),
+          listName: (input) =>
+            addSelfPlanAndSendFunctions(client, getListNameInstruction(input)),
           lockTransfer: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -766,6 +914,11 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getUpdateConfigInstructionAsync(input),
+            ),
+          updateListing: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getUpdateListingInstruction(input),
             ),
           updateRecord: (input) =>
             addSelfPlanAndSendFunctions(

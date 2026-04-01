@@ -65,11 +65,17 @@ export type Config = {
   price3: bigint;
   price4: bigint;
   price5plus: bigint;
+  /** Per-year price for a premium numeric name (all digits, ≤ 4 chars). */
+  priceNumeric: bigint;
   /** Seconds after `expires_at` before a name can be claimed by anyone. */
   gracePeriodSeconds: bigint;
   /** Allowed registration term bounds. */
   minYears: number;
   maxYears: number;
+  /** Wallet that receives native-SOL marketplace fees. */
+  solTreasury: Address;
+  /** Marketplace fee in basis points (e.g. 200 = 2%), capped at `MAX_FEE_BPS`. */
+  marketplaceFeeBps: number;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -87,11 +93,17 @@ export type ConfigArgs = {
   price3: number | bigint;
   price4: number | bigint;
   price5plus: number | bigint;
+  /** Per-year price for a premium numeric name (all digits, ≤ 4 chars). */
+  priceNumeric: number | bigint;
   /** Seconds after `expires_at` before a name can be claimed by anyone. */
   gracePeriodSeconds: number | bigint;
   /** Allowed registration term bounds. */
   minYears: number;
   maxYears: number;
+  /** Wallet that receives native-SOL marketplace fees. */
+  solTreasury: Address;
+  /** Marketplace fee in basis points (e.g. 200 = 2%), capped at `MAX_FEE_BPS`. */
+  marketplaceFeeBps: number;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -109,9 +121,12 @@ export function getConfigEncoder(): FixedSizeEncoder<ConfigArgs> {
       ["price3", getU64Encoder()],
       ["price4", getU64Encoder()],
       ["price5plus", getU64Encoder()],
+      ["priceNumeric", getU64Encoder()],
       ["gracePeriodSeconds", getI64Encoder()],
       ["minYears", getU16Encoder()],
       ["maxYears", getU16Encoder()],
+      ["solTreasury", getAddressEncoder()],
+      ["marketplaceFeeBps", getU16Encoder()],
       ["bump", getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: CONFIG_DISCRIMINATOR }),
@@ -130,9 +145,12 @@ export function getConfigDecoder(): FixedSizeDecoder<Config> {
     ["price3", getU64Decoder()],
     ["price4", getU64Decoder()],
     ["price5plus", getU64Decoder()],
+    ["priceNumeric", getU64Decoder()],
     ["gracePeriodSeconds", getI64Decoder()],
     ["minYears", getU16Decoder()],
     ["maxYears", getU16Decoder()],
+    ["solTreasury", getAddressDecoder()],
+    ["marketplaceFeeBps", getU16Decoder()],
     ["bump", getU8Decoder()],
   ]);
 }
@@ -196,5 +214,5 @@ export async function fetchAllMaybeConfig(
 }
 
 export function getConfigSize(): number {
-  return 157;
+  return 199;
 }

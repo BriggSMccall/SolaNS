@@ -22,6 +22,7 @@ const sampleRecord = {
   parent: none(),
   parentRegisteredAt: 0n,
   depth: 0,
+  listed: false,
   bump: 255,
 } as unknown as NameRecord;
 

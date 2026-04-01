@@ -2,8 +2,11 @@
 #![allow(ambiguous_glob_reexports)]
 
 pub mod burn_name;
+pub mod buy_name;
+pub mod cancel_listing;
 pub mod claim_expired;
 pub mod init_config;
+pub mod list_name;
 pub mod lock_transfer;
 pub mod redeem_name;
 pub mod register_name;
@@ -16,6 +19,7 @@ pub mod set_reverse;
 pub mod tokenize_name;
 pub mod transfer_name;
 pub mod update_config;
+pub mod update_listing;
 pub mod update_record;
 pub mod wrap_subdomain;
 
@@ -24,8 +28,11 @@ pub mod wrap_subdomain;
 // crate root. The colliding `handler` symbols are never referenced via the glob
 // (handlers are called by full path: `instructions::<mod>::handler`).
 pub use burn_name::*;
+pub use buy_name::*;
+pub use cancel_listing::*;
 pub use claim_expired::*;
 pub use init_config::*;
+pub use list_name::*;
 pub use lock_transfer::*;
 pub use redeem_name::*;
 pub use register_name::*;
@@ -38,5 +45,6 @@ pub use set_reverse::*;
 pub use tokenize_name::*;
 pub use transfer_name::*;
 pub use update_config::*;
+pub use update_listing::*;
 pub use update_record::*;
 pub use wrap_subdomain::*;

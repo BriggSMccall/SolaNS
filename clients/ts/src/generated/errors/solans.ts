@@ -60,8 +60,23 @@ export const SOLANS_ERROR__PARENT_EXPIRED = 0x1784; // 6020
 export const SOLANS_ERROR__NOT_PARENT = 0x1785; // 6021
 /** Subdomain: Operation is not supported for a subdomain */
 export const SOLANS_ERROR__SUBDOMAIN = 0x1786; // 6022
+/** Listed: Name is listed for sale; cancel the listing first */
+export const SOLANS_ERROR__LISTED = 0x1787; // 6023
+/** NotListed: Name is not listed for sale */
+export const SOLANS_ERROR__NOT_LISTED = 0x1788; // 6024
+/** NotSeller: Signer is not the seller of this listing */
+export const SOLANS_ERROR__NOT_SELLER = 0x1789; // 6025
+/** ListingExpired: Listing has expired */
+export const SOLANS_ERROR__LISTING_EXPIRED = 0x178a; // 6026
+/** SelfPurchase: Buyer and seller must differ */
+export const SOLANS_ERROR__SELF_PURCHASE = 0x178b; // 6027
+/** PriceMismatch: Listing price does not match the expected price */
+export const SOLANS_ERROR__PRICE_MISMATCH = 0x178c; // 6028
+/** InvalidFeeBps: Marketplace fee exceeds the maximum allowed */
+export const SOLANS_ERROR__INVALID_FEE_BPS = 0x178d; // 6029
 
 export type SolansError =
+  | typeof SOLANS_ERROR__INVALID_FEE_BPS
   | typeof SOLANS_ERROR__INVALID_MINT
   | typeof SOLANS_ERROR__INVALID_NAME_CHARACTER
   | typeof SOLANS_ERROR__INVALID_NAME_HYPHEN
@@ -70,16 +85,22 @@ export type SolansError =
   | typeof SOLANS_ERROR__INVALID_TLD
   | typeof SOLANS_ERROR__INVALID_TREASURY
   | typeof SOLANS_ERROR__INVALID_YEARS
+  | typeof SOLANS_ERROR__LISTED
+  | typeof SOLANS_ERROR__LISTING_EXPIRED
   | typeof SOLANS_ERROR__MATH_OVERFLOW
   | typeof SOLANS_ERROR__NAME_MISMATCH
   | typeof SOLANS_ERROR__NOT_ADMIN
   | typeof SOLANS_ERROR__NOT_AUTHORIZED
   | typeof SOLANS_ERROR__NOT_EXPIRED
+  | typeof SOLANS_ERROR__NOT_LISTED
   | typeof SOLANS_ERROR__NOT_OWNER
   | typeof SOLANS_ERROR__NOT_PARENT
+  | typeof SOLANS_ERROR__NOT_SELLER
   | typeof SOLANS_ERROR__PARENT_EXPIRED
+  | typeof SOLANS_ERROR__PRICE_MISMATCH
   | typeof SOLANS_ERROR__RECORD_NOT_FOUND
   | typeof SOLANS_ERROR__RECORD_TOO_LONG
+  | typeof SOLANS_ERROR__SELF_PURCHASE
   | typeof SOLANS_ERROR__SUBDOMAIN
   | typeof SOLANS_ERROR__TOKENIZED
   | typeof SOLANS_ERROR__TOO_DEEP
@@ -89,6 +110,7 @@ export type SolansError =
 let solansErrorMessages: Record<SolansError, string> | undefined;
 if (process.env["NODE_ENV"] !== "production") {
   solansErrorMessages = {
+    [SOLANS_ERROR__INVALID_FEE_BPS]: `Marketplace fee exceeds the maximum allowed`,
     [SOLANS_ERROR__INVALID_MINT]: `Payment mint does not match config`,
     [SOLANS_ERROR__INVALID_NAME_CHARACTER]: `Name contains invalid characters (allowed: lowercase a-z, 0-9, hyphen)`,
     [SOLANS_ERROR__INVALID_NAME_HYPHEN]: `Invalid hyphen position (no leading, trailing, or consecutive hyphens)`,
@@ -97,16 +119,22 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__INVALID_TLD]: `Unsupported TLD`,
     [SOLANS_ERROR__INVALID_TREASURY]: `Treasury token account does not match config`,
     [SOLANS_ERROR__INVALID_YEARS]: `Registration term (years) is out of the allowed range`,
+    [SOLANS_ERROR__LISTED]: `Name is listed for sale; cancel the listing first`,
+    [SOLANS_ERROR__LISTING_EXPIRED]: `Listing has expired`,
     [SOLANS_ERROR__MATH_OVERFLOW]: `Arithmetic overflow`,
     [SOLANS_ERROR__NAME_MISMATCH]: `Provided name does not match the account's name hash`,
     [SOLANS_ERROR__NOT_ADMIN]: `Signer is not the config admin`,
     [SOLANS_ERROR__NOT_AUTHORIZED]: `Signer is not the owner or controller of this name`,
     [SOLANS_ERROR__NOT_EXPIRED]: `Name is not past its expiration + grace period`,
+    [SOLANS_ERROR__NOT_LISTED]: `Name is not listed for sale`,
     [SOLANS_ERROR__NOT_OWNER]: `Signer is not the owner of this name`,
     [SOLANS_ERROR__NOT_PARENT]: `Account is not a subdomain of the provided parent`,
+    [SOLANS_ERROR__NOT_SELLER]: `Signer is not the seller of this listing`,
     [SOLANS_ERROR__PARENT_EXPIRED]: `Parent name has expired`,
+    [SOLANS_ERROR__PRICE_MISMATCH]: `Listing price does not match the expected price`,
     [SOLANS_ERROR__RECORD_NOT_FOUND]: `Record key not found`,
     [SOLANS_ERROR__RECORD_TOO_LONG]: `Record key or value exceeds the maximum length`,
+    [SOLANS_ERROR__SELF_PURCHASE]: `Buyer and seller must differ`,
     [SOLANS_ERROR__SUBDOMAIN]: `Operation is not supported for a subdomain`,
     [SOLANS_ERROR__TOKENIZED]: `Name is tokenized as an NFT; redeem it first`,
     [SOLANS_ERROR__TOO_DEEP]: `Subdomain depth exceeds the maximum`,

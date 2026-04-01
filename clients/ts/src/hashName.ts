@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
-import { findNameRecordPda } from "./generated";
+import { getProgramDerivedAddress } from "@solana/kit";
+import { findNameRecordPda, SOLANS_PROGRAM_ADDRESS } from "./generated";
 import { DEFAULT_TLD, parseName, parsePath, type Tld } from "./normalize";
+
+const LISTING_SEED = new TextEncoder().encode("listing");
 
 /**
  * Canonical name hash: `sha256(name + "." + tld)`.
@@ -73,4 +76,12 @@ export function nameHashFor(input: string, tldOverride?: string): Uint8Array {
 /** Derive the name-record PDA for a raw name/path (matches the on-chain seeds). */
 export async function findNameRecord(input: string, tldOverride?: string) {
   return findNameRecordPda({ nameHash: nameHashFor(input, tldOverride) });
+}
+
+/** Derive the marketplace listing PDA for a raw name/path (`[b"listing", name_hash]`). */
+export async function findListing(input: string, tldOverride?: string) {
+  return getProgramDerivedAddress({
+    programAddress: SOLANS_PROGRAM_ADDRESS,
+    seeds: [LISTING_SEED, nameHashFor(input, tldOverride)],
+  });
 }

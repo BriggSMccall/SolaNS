@@ -48,4 +48,18 @@ pub enum SolansError {
     NotParent,
     #[msg("Operation is not supported for a subdomain")]
     Subdomain,
+    #[msg("Name is listed for sale; cancel the listing first")]
+    Listed,
+    #[msg("Name is not listed for sale")]
+    NotListed,
+    #[msg("Signer is not the seller of this listing")]
+    NotSeller,
+    #[msg("Listing has expired")]
+    ListingExpired,
+    #[msg("Buyer and seller must differ")]
+    SelfPurchase,
+    #[msg("Listing price does not match the expected price")]
+    PriceMismatch,
+    #[msg("Marketplace fee exceeds the maximum allowed")]
+    InvalidFeeBps,
 }

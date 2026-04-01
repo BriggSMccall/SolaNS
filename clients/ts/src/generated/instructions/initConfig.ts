@@ -10,6 +10,8 @@ import {
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
+  getAddressDecoder,
+  getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getI64Decoder,
@@ -98,9 +100,12 @@ export type InitConfigInstructionData = {
   price3: bigint;
   price4: bigint;
   price5plus: bigint;
+  priceNumeric: bigint;
   gracePeriodSeconds: bigint;
   minYears: number;
   maxYears: number;
+  solTreasury: Address;
+  marketplaceFeeBps: number;
 };
 
 export type InitConfigInstructionDataArgs = {
@@ -109,9 +114,12 @@ export type InitConfigInstructionDataArgs = {
   price3: number | bigint;
   price4: number | bigint;
   price5plus: number | bigint;
+  priceNumeric: number | bigint;
   gracePeriodSeconds: number | bigint;
   minYears: number;
   maxYears: number;
+  solTreasury: Address;
+  marketplaceFeeBps: number;
 };
 
 export function getInitConfigInstructionDataEncoder(): FixedSizeEncoder<InitConfigInstructionDataArgs> {
@@ -123,9 +131,12 @@ export function getInitConfigInstructionDataEncoder(): FixedSizeEncoder<InitConf
       ["price3", getU64Encoder()],
       ["price4", getU64Encoder()],
       ["price5plus", getU64Encoder()],
+      ["priceNumeric", getU64Encoder()],
       ["gracePeriodSeconds", getI64Encoder()],
       ["minYears", getU16Encoder()],
       ["maxYears", getU16Encoder()],
+      ["solTreasury", getAddressEncoder()],
+      ["marketplaceFeeBps", getU16Encoder()],
     ]),
     (value) => ({ ...value, discriminator: INIT_CONFIG_DISCRIMINATOR }),
   );
@@ -139,9 +150,12 @@ export function getInitConfigInstructionDataDecoder(): FixedSizeDecoder<InitConf
     ["price3", getU64Decoder()],
     ["price4", getU64Decoder()],
     ["price5plus", getU64Decoder()],
+    ["priceNumeric", getU64Decoder()],
     ["gracePeriodSeconds", getI64Decoder()],
     ["minYears", getU16Decoder()],
     ["maxYears", getU16Decoder()],
+    ["solTreasury", getAddressDecoder()],
+    ["marketplaceFeeBps", getU16Decoder()],
   ]);
 }
 
@@ -176,9 +190,12 @@ export type InitConfigAsyncInput<
   price3: InitConfigInstructionDataArgs["price3"];
   price4: InitConfigInstructionDataArgs["price4"];
   price5plus: InitConfigInstructionDataArgs["price5plus"];
+  priceNumeric: InitConfigInstructionDataArgs["priceNumeric"];
   gracePeriodSeconds: InitConfigInstructionDataArgs["gracePeriodSeconds"];
   minYears: InitConfigInstructionDataArgs["minYears"];
   maxYears: InitConfigInstructionDataArgs["maxYears"];
+  solTreasury: InitConfigInstructionDataArgs["solTreasury"];
+  marketplaceFeeBps: InitConfigInstructionDataArgs["marketplaceFeeBps"];
 };
 
 export async function getInitConfigInstructionAsync<
@@ -292,9 +309,12 @@ export type InitConfigInput<
   price3: InitConfigInstructionDataArgs["price3"];
   price4: InitConfigInstructionDataArgs["price4"];
   price5plus: InitConfigInstructionDataArgs["price5plus"];
+  priceNumeric: InitConfigInstructionDataArgs["priceNumeric"];
   gracePeriodSeconds: InitConfigInstructionDataArgs["gracePeriodSeconds"];
   minYears: InitConfigInstructionDataArgs["minYears"];
   maxYears: InitConfigInstructionDataArgs["maxYears"];
+  solTreasury: InitConfigInstructionDataArgs["solTreasury"];
+  marketplaceFeeBps: InitConfigInstructionDataArgs["marketplaceFeeBps"];
 };
 
 export function getInitConfigInstruction<

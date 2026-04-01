@@ -17,6 +17,7 @@ pub fn handler(ctx: Context<SetResolver>, resolver: Option<Pubkey>) -> Result<()
         ctx.accounts.name_record.nft_mint.is_none(),
         SolansError::Tokenized
     );
+    require!(!ctx.accounts.name_record.listed, SolansError::Listed);
     ctx.accounts.name_record.resolver = resolver;
     Ok(())
 }

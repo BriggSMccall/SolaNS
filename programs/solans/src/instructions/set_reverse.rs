@@ -32,6 +32,7 @@ pub struct SetReverse<'info> {
 pub fn handler(ctx: Context<SetReverse>, name: String) -> Result<()> {
     let nr = &ctx.accounts.name_record;
     require!(nr.nft_mint.is_none(), SolansError::Tokenized);
+    require!(!nr.listed, SolansError::Listed);
     // Reverse records store a single label; a subdomain's full path needs a path
     // field + recursive verification (a follow-up). Top-level only for now.
     require!(nr.parent.is_none(), SolansError::Subdomain);

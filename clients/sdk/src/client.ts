@@ -1,10 +1,13 @@
 import { fetchEncodedAccount, unwrapOption, type Address, type MaybeEncodedAccount } from "@solana/kit";
 import {
+  decodeListing,
   decodeNameRecord,
   decodeReverseRecord,
+  findListing,
   findNameRecord,
   findNameRecordPda,
   findReverseRecordPda,
+  type Listing,
   type NameRecord,
   type Record as SolansRecord,
 } from "@solans/client";
@@ -60,6 +63,13 @@ export class SolansClient {
   /** All key→value records for a name (empty array if unregistered). */
   async getRecords(name: string): Promise<SolansRecord[]> {
     return (await this.resolve(name))?.records ?? [];
+  }
+
+  /** The active marketplace listing for a name, or null if not listed. */
+  async getListing(name: string): Promise<Listing | null> {
+    const [pda] = await findListing(name);
+    const acct = await this.fetchAccount(pda);
+    return acct.exists ? decodeListing(acct).data : null;
   }
 
   /** A single record value by key, or null. */

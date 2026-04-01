@@ -2,10 +2,14 @@ import { Command } from "commander";
 import { address, generateKeyPairSigner, unwrapOption } from "@solana/kit";
 import {
   computeSubdomainHash,
+  findListing,
   findNameRecordPda,
   getBurnNameInstruction,
+  getBuyNameInstruction,
+  getCancelListingInstruction,
   getClaimExpiredInstructionAsync,
   getInitConfigInstructionAsync,
+  getListNameInstruction,
   getLockTransferInstruction,
   getRedeemNameInstructionAsync,
   getRegisterNameInstructionAsync,
@@ -18,6 +22,7 @@ import {
   getTokenizeNameInstructionAsync,
   getTransferNameInstruction,
   getUpdateConfigInstructionAsync,
+  getUpdateListingInstruction,
   getUpdateRecordInstruction,
   getWrapSubdomainInstructionAsync,
   nameHashFor,
@@ -62,6 +67,14 @@ async function nftTokenAccountIfTokenized(ctx: Ctx, name: string) {
   return mint ? await ataFor(ctx.signer.address, mint) : undefined;
 }
 
+const LAMPORTS_PER_SOL = 1_000_000_000n;
+/** Parse a decimal SOL string (e.g. "1.5") into integer lamports. */
+function solToLamports(sol: string): bigint {
+  const [whole, frac = ""] = sol.trim().split(".");
+  return BigInt(whole || "0") * LAMPORTS_PER_SOL + BigInt((frac + "000000000").slice(0, 9));
+}
+const lamportsToSol = (l: bigint) => (Number(l) / Number(LAMPORTS_PER_SOL)).toString();
+
 // --- admin -----------------------------------------------------------------
 program
   .command("init-config")
@@ -73,9 +86,12 @@ program
   .option("--price3 <baseUnits>", "3-char price / year", "50000000")
   .option("--price4 <baseUnits>", "4-char price / year", "10000000")
   .option("--price5 <baseUnits>", "5+-char price / year", "1000000")
+  .option("--price-numeric <baseUnits>", "premium ≤4-digit numeric price / year", "500000000")
   .option("--grace <seconds>", "grace period before claim", "7776000")
   .option("--min-years <n>", "minimum term", "1")
   .option("--max-years <n>", "maximum term", "10")
+  .option("--sol-treasury <address>", "wallet receiving SOL marketplace fees (default: signer)")
+  .option("--fee-bps <bps>", "marketplace fee in basis points (max 1000)", "200")
   .action(async (o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const ix = await getInitConfigInstructionAsync({
@@ -87,9 +103,12 @@ program
       price3: BigInt(o.price3),
       price4: BigInt(o.price4),
       price5plus: BigInt(o.price5),
+      priceNumeric: BigInt(o.priceNumeric),
       gracePeriodSeconds: BigInt(o.grace),
       minYears: Number(o.minYears),
       maxYears: Number(o.maxYears),
+      solTreasury: o.solTreasury ? address(o.solTreasury) : ctx.signer.address,
+      marketplaceFeeBps: Number(o.feeBps),
     });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
@@ -102,9 +121,12 @@ program
   .option("--price3 <baseUnits>", "3-char price / year")
   .option("--price4 <baseUnits>", "4-char price / year")
   .option("--price5 <baseUnits>", "5+-char price / year")
+  .option("--price-numeric <baseUnits>", "premium ≤4-digit numeric price / year")
   .option("--grace <seconds>", "grace period before claim")
   .option("--min-years <n>", "minimum term")
   .option("--max-years <n>", "maximum term")
+  .option("--sol-treasury <address>", "wallet receiving SOL marketplace fees")
+  .option("--fee-bps <bps>", "marketplace fee in basis points (max 1000)")
   .action(async (o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const d = (await getConfig(ctx)).data;
@@ -115,9 +137,12 @@ program
       price3: o.price3 ? BigInt(o.price3) : d.price3,
       price4: o.price4 ? BigInt(o.price4) : d.price4,
       price5plus: o.price5 ? BigInt(o.price5) : d.price5plus,
+      priceNumeric: o.priceNumeric ? BigInt(o.priceNumeric) : d.priceNumeric,
       gracePeriodSeconds: o.grace ? BigInt(o.grace) : d.gracePeriodSeconds,
       minYears: o.minYears ? Number(o.minYears) : d.minYears,
       maxYears: o.maxYears ? Number(o.maxYears) : d.maxYears,
+      solTreasury: o.solTreasury ? address(o.solTreasury) : d.solTreasury,
+      marketplaceFeeBps: o.feeBps ? Number(o.feeBps) : d.marketplaceFeeBps,
     });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
@@ -366,6 +391,78 @@ subdomain
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
 
+// --- marketplace -----------------------------------------------------------
+program
+  .command("list <name> <priceSol>")
+  .description("List a name for sale at a fixed SOL price (owner)")
+  .option("--days <n>", "listing duration in days", "30")
+  .action(async (name, priceSol, o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const [nameRecord] = await nameRecordPda(name);
+    const [listing] = await findListing(name);
+    const ix = getListNameInstruction({
+      owner: ctx.signer,
+      nameRecord,
+      listing,
+      price: solToLamports(priceSol),
+      durationSeconds: BigInt(Math.round(Number(o.days) * 86_400)),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(`  listed ${name} for ${priceSol} SOL`);
+  });
+
+program
+  .command("unlist <name>")
+  .description("Cancel a listing (seller, or anyone once it has expired)")
+  .action(async (name, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const [nameRecord] = await nameRecordPda(name);
+    const [listing] = await findListing(name);
+    const l = await SolansClient.fromRpc(ctx.rpc).getListing(name);
+    if (!l) throw new Error(`${name} is not listed`);
+    const ix = getCancelListingInstruction({ canceller: ctx.signer, seller: l.seller, nameRecord, listing });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("update-listing <name> <priceSol>")
+  .description("Reprice / re-extend a listing (seller)")
+  .option("--days <n>", "new listing duration in days", "30")
+  .action(async (name, priceSol, o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const [listing] = await findListing(name);
+    const ix = getUpdateListingInstruction({
+      seller: ctx.signer,
+      listing,
+      price: solToLamports(priceSol),
+      durationSeconds: BigInt(Math.round(Number(o.days) * 86_400)),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("buy <name>")
+  .description("Buy a listed name (pays the listed SOL price)")
+  .action(async (name, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const [nameRecord] = await nameRecordPda(name);
+    const [listing] = await findListing(name);
+    const l = await SolansClient.fromRpc(ctx.rpc).getListing(name);
+    if (!l) throw new Error(`${name} is not listed`);
+    const cfg = await getConfig(ctx);
+    const ix = getBuyNameInstruction({
+      buyer: ctx.signer,
+      seller: l.seller,
+      solTreasury: cfg.data.solTreasury,
+      config: cfg.address,
+      nameRecord,
+      listing,
+      expectedPrice: l.price,
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(`  bought ${name} for ${lamportsToSol(l.price)} SOL`);
+  });
+
 // --- reads -----------------------------------------------------------------
 async function showRecord(ctx: Ctx, name: string, full: boolean) {
   const info = nameInfo(name);
@@ -391,8 +488,14 @@ async function showRecord(ctx: Ctx, name: string, full: boolean) {
     nftMint: unwrapOption(d.nftMint),
     parent: unwrapOption(d.parent),
     depth: d.depth,
+    listed: d.listed,
     records: d.records.map((r) => ({ key: r.key, value: r.value })),
   };
+  const listing = d.listed ? await SolansClient.fromRpc(ctx.rpc).getListing(name) : null;
+  if (listing) {
+    out.listingPriceSol = lamportsToSol(listing.price);
+    out.listingExpiresAt = new Date(Number(listing.expiresAt) * 1000).toISOString();
+  }
   if (full) {
     out.registeredAt = new Date(Number(d.registeredAt) * 1000).toISOString();
     out.nameHash = Buffer.from(d.nameHash).toString("hex");
@@ -415,6 +518,7 @@ async function showRecord(ctx: Ctx, name: string, full: boolean) {
     if (resolver) console.log(`  resolver:   ${resolver}`);
     if (hosting) console.log(`  hosting:    ${hosting}`);
     if (nftMint) console.log(`  tokenized:  NFT mint ${nftMint}`);
+    if (listing) console.log(`  listed:     ${lamportsToSol(listing.price)} SOL (until ${out.listingExpiresAt})`);
     if (d.records.length === 0) console.log(`  records:    (none)`);
     else for (const r of d.records) console.log(`  record:     ${r.key} = ${r.value}`);
   }

@@ -57,6 +57,10 @@ pub struct NameRecord {
     pub parent_registered_at: i64,
     /// Subdomain depth: 0 for a top-level name, +1 per level (capped on creation).
     pub depth: u8,
+    /// When true, the name is listed for sale on the native marketplace and is
+    /// frozen: owner-gated mutations are rejected until `buy_name`/`cancel_listing`.
+    /// Non-custodial — the seller keeps `owner`; the lock is what protects buyers.
+    pub listed: bool,
     /// Canonical PDA bump.
     pub bump: u8,
 }

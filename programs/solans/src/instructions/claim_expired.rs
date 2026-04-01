@@ -68,7 +68,7 @@ pub fn handler(ctx: Context<ClaimExpired>, name: String, tld: String, years: u16
 
     validate_years(years, config.min_years, config.max_years)?;
     let amount = config
-        .price_for_len(name.len())
+        .price_for_label(&name)
         .checked_mul(years as u64)
         .ok_or_else(|| error!(SolansError::MathOverflow))?;
 
@@ -103,5 +103,8 @@ pub fn handler(ctx: Context<ClaimExpired>, name: String, tld: String, years: u16
     nr.parent = None;
     nr.parent_registered_at = 0;
     nr.depth = 0;
+    // A re-registered name drops any stale listing (the old Listing PDA, if any,
+    // becomes unbuyable: buy_name checks `owner == listing.seller`).
+    nr.listed = false;
     Ok(())
 }

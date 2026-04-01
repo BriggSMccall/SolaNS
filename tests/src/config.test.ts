@@ -11,6 +11,9 @@ describe("init_config / update_config", () => {
     expect(cfg.treasuryTokenAccount).toBe(env.treasury);
     expect(cfg.paymentMint).toBe(env.mint);
     expect(cfg.gracePeriodSeconds).toBe(7_776_000n);
+    expect(cfg.solTreasury).toBe(env.solTreasury);
+    expect(cfg.marketplaceFeeBps).toBe(200);
+    expect(cfg.priceNumeric).toBe(500_000_000n);
   });
 
   it("lets the admin update params, but rejects a non-admin (NotAdmin)", async () => {
@@ -26,15 +29,19 @@ describe("init_config / update_config", () => {
         price3: before.price3,
         price4: before.price4,
         price5plus: 42n,
+        priceNumeric: before.priceNumeric,
         gracePeriodSeconds: 123n,
         minYears: 1,
         maxYears: 5,
+        solTreasury: before.solTreasury,
+        marketplaceFeeBps: 300,
       }),
     ]);
     const after = readConfig(env.svm, cfgPda)!;
     expect(after.price5plus).toBe(42n);
     expect(after.gracePeriodSeconds).toBe(123n);
     expect(after.maxYears).toBe(5);
+    expect(after.marketplaceFeeBps).toBe(300);
 
     const stranger = await fundedSigner(env.svm);
     const res = await sendExpectingFailure(env.svm, stranger, [
@@ -45,9 +52,12 @@ describe("init_config / update_config", () => {
         price3: 1n,
         price4: 1n,
         price5plus: 1n,
+        priceNumeric: 1n,
         gracePeriodSeconds: 0n,
         minYears: 1,
         maxYears: 1,
+        solTreasury: stranger.address,
+        marketplaceFeeBps: 1,
       }),
     ]);
     expect(logsOf(res)).toContain("NotAdmin");

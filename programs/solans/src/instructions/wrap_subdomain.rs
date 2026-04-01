@@ -40,6 +40,7 @@ pub fn handler(ctx: Context<WrapSubdomain>, label: String, name_hash: [u8; 32]) 
     // Structural action on the parent — blocked while the parent is tokenized
     // (its `owner` is stale once the NFT trades); redeem first.
     require!(parent.nft_mint.is_none(), SolansError::Tokenized);
+    require!(!parent.listed, SolansError::Listed);
 
     let now = Clock::get()?.unix_timestamp;
     require!(now <= parent.expires_at, SolansError::ParentExpired);
@@ -77,6 +78,7 @@ pub fn handler(ctx: Context<WrapSubdomain>, label: String, name_hash: [u8; 32]) 
     nr.parent = Some(parent_key);
     nr.parent_registered_at = parent_registered_at;
     nr.depth = depth;
+    nr.listed = false;
     nr.bump = ctx.bumps.name_record;
     Ok(())
 }

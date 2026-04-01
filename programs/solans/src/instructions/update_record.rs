@@ -25,6 +25,7 @@ pub fn handler(ctx: Context<UpdateRecord>, key: String, value: Option<String>) -
     let authority = ctx.accounts.authority.key();
     let nft_ta = ctx.accounts.nft_token_account.as_ref();
     let nr = &mut ctx.accounts.name_record;
+    require!(!nr.listed, SolansError::Listed);
     require!(
         name_authority_ok(nr, &authority, nft_ta) || nr.controller == Some(authority),
         SolansError::NotAuthorized

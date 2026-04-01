@@ -111,6 +111,12 @@ export type NameRecord = {
   parentRegisteredAt: bigint;
   /** Subdomain depth: 0 for a top-level name, +1 per level (capped on creation). */
   depth: number;
+  /**
+   * When true, the name is listed for sale on the native marketplace and is
+   * frozen: owner-gated mutations are rejected until `buy_name`/`cancel_listing`.
+   * Non-custodial — the seller keeps `owner`; the lock is what protects buyers.
+   */
+  listed: boolean;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -158,6 +164,12 @@ export type NameRecordArgs = {
   parentRegisteredAt: number | bigint;
   /** Subdomain depth: 0 for a top-level name, +1 per level (capped on creation). */
   depth: number;
+  /**
+   * When true, the name is listed for sale on the native marketplace and is
+   * frozen: owner-gated mutations are rejected until `buy_name`/`cancel_listing`.
+   * Non-custodial — the seller keeps `owner`; the lock is what protects buyers.
+   */
+  listed: boolean;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -187,6 +199,7 @@ export function getNameRecordEncoder(): Encoder<NameRecordArgs> {
       ["parent", getOptionEncoder(getAddressEncoder())],
       ["parentRegisteredAt", getI64Encoder()],
       ["depth", getU8Encoder()],
+      ["listed", getBooleanEncoder()],
       ["bump", getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: NAME_RECORD_DISCRIMINATOR }),
@@ -215,6 +228,7 @@ export function getNameRecordDecoder(): Decoder<NameRecord> {
     ["parent", getOptionDecoder(getAddressDecoder())],
     ["parentRegisteredAt", getI64Decoder()],
     ["depth", getU8Decoder()],
+    ["listed", getBooleanDecoder()],
     ["bump", getU8Decoder()],
   ]);
 }

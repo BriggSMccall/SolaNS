@@ -1,5 +1,6 @@
 pub mod constants;
 pub mod error;
+pub mod events;
 pub mod instructions;
 pub mod state;
 pub mod utils;
@@ -23,9 +24,12 @@ pub mod solans {
         price_3: u64,
         price_4: u64,
         price_5plus: u64,
+        price_numeric: u64,
         grace_period_seconds: i64,
         min_years: u16,
         max_years: u16,
+        sol_treasury: Pubkey,
+        marketplace_fee_bps: u16,
     ) -> Result<()> {
         instructions::init_config::handler(
             ctx,
@@ -34,9 +38,12 @@ pub mod solans {
             price_3,
             price_4,
             price_5plus,
+            price_numeric,
             grace_period_seconds,
             min_years,
             max_years,
+            sol_treasury,
+            marketplace_fee_bps,
         )
     }
 
@@ -127,6 +134,26 @@ pub mod solans {
         instructions::revoke_subdomain::handler(ctx)
     }
 
+    pub fn list_name(ctx: Context<ListName>, price: u64, duration_seconds: i64) -> Result<()> {
+        instructions::list_name::handler(ctx, price, duration_seconds)
+    }
+
+    pub fn update_listing(
+        ctx: Context<UpdateListing>,
+        price: u64,
+        duration_seconds: i64,
+    ) -> Result<()> {
+        instructions::update_listing::handler(ctx, price, duration_seconds)
+    }
+
+    pub fn cancel_listing(ctx: Context<CancelListing>) -> Result<()> {
+        instructions::cancel_listing::handler(ctx)
+    }
+
+    pub fn buy_name(ctx: Context<BuyName>, expected_price: u64) -> Result<()> {
+        instructions::buy_name::handler(ctx, expected_price)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_config(
         ctx: Context<UpdateConfig>,
@@ -135,9 +162,12 @@ pub mod solans {
         price_3: u64,
         price_4: u64,
         price_5plus: u64,
+        price_numeric: u64,
         grace_period_seconds: i64,
         min_years: u16,
         max_years: u16,
+        sol_treasury: Pubkey,
+        marketplace_fee_bps: u16,
     ) -> Result<()> {
         instructions::update_config::handler(
             ctx,
@@ -146,9 +176,12 @@ pub mod solans {
             price_3,
             price_4,
             price_5plus,
+            price_numeric,
             grace_period_seconds,
             min_years,
             max_years,
+            sol_treasury,
+            marketplace_fee_bps,
         )
     }
 }

@@ -22,6 +22,7 @@ function serialize(input: string, d: NameRecord) {
     hostingRef: unwrapOption(d.hostingRef),
     nftMint: unwrapOption(d.nftMint),
     tokenized: unwrapOption(d.nftMint) !== null,
+    listed: d.listed,
     records: d.records.map((r) => ({ key: r.key, value: r.value })),
   };
 }

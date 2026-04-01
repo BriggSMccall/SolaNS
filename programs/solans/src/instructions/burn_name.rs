@@ -20,5 +20,6 @@ pub fn handler(ctx: Context<BurnName>) -> Result<()> {
         ctx.accounts.name_record.nft_mint.is_none(),
         SolansError::Tokenized
     );
+    require!(!ctx.accounts.name_record.listed, SolansError::Listed);
     Ok(())
 }

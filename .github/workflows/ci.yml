@@ -58,6 +58,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Restore the canonical program keypair so the built program id matches
+      # `declare_id!` (target/ is gitignored, so the keypair is committed at the
+      # repo root). Done after the cache restore so it always wins.
+      - name: Restore program keypair
+        run: |
+          mkdir -p target/deploy
+          cp solans-keypair.json target/deploy/solans-keypair.json
+
       - name: Build program
         run: NO_DNA=1 anchor build
 

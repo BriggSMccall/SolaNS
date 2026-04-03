@@ -35,12 +35,15 @@ jobs:
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
       - name: Install Anchor 1.0.2 (avm)
-        # `--locked` uses Anchor's committed Cargo.lock so the build doesn't
-        # resolve to a newer transitive dep that raised its MSRV past rustc 1.89
-        # (e.g. cargo-platform 0.3.3 requires 1.91). `avm install` already passes
-        # `--locked` when it builds anchor-cli.
+        # Force the stable toolchain for the tooling build: cargo runs in the repo
+        # dir where rust-toolchain.toml pins 1.89, and `RUSTUP_TOOLCHAIN` outranks
+        # that file (and applies to avm's internal `cargo install anchor-cli` too).
+        # Needed because avm's deps (cargo-platform 0.3.3) require rustc >= 1.91.
+        # rust-toolchain.toml still governs `anchor build` (no env there).
+        env:
+          RUSTUP_TOOLCHAIN: stable
         run: |
-          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          cargo install --git https://github.com/coral-xyz/anchor avm --force
           avm install 1.0.2
           avm use 1.0.2
 

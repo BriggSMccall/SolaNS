@@ -1,13 +1,16 @@
 // The intentional `handler` glob-reexport collisions are benign (see below).
 #![allow(ambiguous_glob_reexports)]
 
+pub mod accept_offer;
 pub mod burn_name;
 pub mod buy_name;
 pub mod cancel_listing;
+pub mod cancel_offer;
 pub mod claim_expired;
 pub mod init_config;
 pub mod list_name;
 pub mod lock_transfer;
+pub mod make_offer;
 pub mod redeem_name;
 pub mod register_name;
 pub mod renew_name;
@@ -27,13 +30,16 @@ pub mod wrap_subdomain;
 // resolve each instruction's generated `__client_accounts_*` modules at the
 // crate root. The colliding `handler` symbols are never referenced via the glob
 // (handlers are called by full path: `instructions::<mod>::handler`).
+pub use accept_offer::*;
 pub use burn_name::*;
 pub use buy_name::*;
 pub use cancel_listing::*;
+pub use cancel_offer::*;
 pub use claim_expired::*;
 pub use init_config::*;
 pub use list_name::*;
 pub use lock_transfer::*;
+pub use make_offer::*;
 pub use redeem_name::*;
 pub use register_name::*;
 pub use renew_name::*;

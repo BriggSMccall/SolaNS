@@ -82,6 +82,24 @@ pub fn compute_subdomain_hash(parent_hash: &[u8; 32], label: &str) -> [u8; 32] {
     hashv(&[&[0u8], parent_hash.as_ref(), label.as_bytes()]).to_bytes()
 }
 
+/// Move `amount` lamports from a **program-owned** account to another (checked).
+/// Used to pay out an Offer PDA's SOL escrow; `from` must be owned by this
+/// program so the runtime permits the debit.
+pub fn move_lamports(from: &AccountInfo, to: &AccountInfo, amount: u64) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
+    let from_balance = from.lamports();
+    let to_balance = to.lamports();
+    **from.try_borrow_mut_lamports()? = from_balance
+        .checked_sub(amount)
+        .ok_or_else(|| error!(SolansError::MathOverflow))?;
+    **to.try_borrow_mut_lamports()? = to_balance
+        .checked_add(amount)
+        .ok_or_else(|| error!(SolansError::MathOverflow))?;
+    Ok(())
+}
+
 /// Validate a registration term against config bounds.
 pub fn validate_years(years: u16, min_years: u16, max_years: u16) -> Result<()> {
     require!(

@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
-import { getProgramDerivedAddress } from "@solana/kit";
+import { getAddressEncoder, getProgramDerivedAddress, type Address } from "@solana/kit";
 import { findNameRecordPda, SOLANS_PROGRAM_ADDRESS } from "./generated";
 import { DEFAULT_TLD, parseName, parsePath, type Tld } from "./normalize";
 
 const LISTING_SEED = new TextEncoder().encode("listing");
+const OFFER_SEED = new TextEncoder().encode("offer");
 
 /**
  * Canonical name hash: `sha256(name + "." + tld)`.
@@ -83,5 +84,13 @@ export async function findListing(input: string, tldOverride?: string) {
   return getProgramDerivedAddress({
     programAddress: SOLANS_PROGRAM_ADDRESS,
     seeds: [LISTING_SEED, nameHashFor(input, tldOverride)],
+  });
+}
+
+/** Derive an offer PDA for a raw name/path + bidder (`[b"offer", name_hash, buyer]`). */
+export async function findOffer(input: string, buyer: Address, tldOverride?: string) {
+  return getProgramDerivedAddress({
+    programAddress: SOLANS_PROGRAM_ADDRESS,
+    seeds: [OFFER_SEED, nameHashFor(input, tldOverride), getAddressEncoder().encode(buyer)],
   });
 }

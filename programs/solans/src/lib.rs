@@ -154,6 +154,18 @@ pub mod solans {
         instructions::buy_name::handler(ctx, expected_price)
     }
 
+    pub fn make_offer(ctx: Context<MakeOffer>, amount: u64, duration_seconds: i64) -> Result<()> {
+        instructions::make_offer::handler(ctx, amount, duration_seconds)
+    }
+
+    pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
+        instructions::accept_offer::handler(ctx)
+    }
+
+    pub fn cancel_offer(ctx: Context<CancelOffer>) -> Result<()> {
+        instructions::cancel_offer::handler(ctx)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_config(
         ctx: Context<UpdateConfig>,

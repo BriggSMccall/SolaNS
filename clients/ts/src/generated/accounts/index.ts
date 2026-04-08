@@ -9,4 +9,5 @@
 export * from "./config";
 export * from "./listing";
 export * from "./nameRecord";
+export * from "./offer";
 export * from "./reverseRecord";

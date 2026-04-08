@@ -62,4 +62,8 @@ pub enum SolansError {
     PriceMismatch,
     #[msg("Marketplace fee exceeds the maximum allowed")]
     InvalidFeeBps,
+    #[msg("Offer has expired")]
+    OfferExpired,
+    #[msg("Signer cannot cancel this offer")]
+    NotOfferer,
 }

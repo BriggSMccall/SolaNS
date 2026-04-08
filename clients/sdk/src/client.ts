@@ -2,13 +2,16 @@ import { fetchEncodedAccount, unwrapOption, type Address, type MaybeEncodedAccou
 import {
   decodeListing,
   decodeNameRecord,
+  decodeOffer,
   decodeReverseRecord,
   findListing,
   findNameRecord,
   findNameRecordPda,
+  findOffer,
   findReverseRecordPda,
   type Listing,
   type NameRecord,
+  type Offer,
   type Record as SolansRecord,
 } from "@solans/client";
 
@@ -70,6 +73,13 @@ export class SolansClient {
     const [pda] = await findListing(name);
     const acct = await this.fetchAccount(pda);
     return acct.exists ? decodeListing(acct).data : null;
+  }
+
+  /** A specific bidder's standing offer on a name, or null. */
+  async getOffer(name: string, buyer: Address): Promise<Offer | null> {
+    const [pda] = await findOffer(name, buyer);
+    const acct = await this.fetchAccount(pda);
+    return acct.exists ? decodeOffer(acct).data : null;
   }
 
   /** A single record value by key, or null. */

@@ -6,13 +6,16 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./acceptOffer";
 export * from "./burnName";
 export * from "./buyName";
 export * from "./cancelListing";
+export * from "./cancelOffer";
 export * from "./claimExpired";
 export * from "./initConfig";
 export * from "./listName";
 export * from "./lockTransfer";
+export * from "./makeOffer";
 export * from "./redeemName";
 export * from "./registerName";
 export * from "./renewName";

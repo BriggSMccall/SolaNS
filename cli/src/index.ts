@@ -4,13 +4,17 @@ import {
   computeSubdomainHash,
   findListing,
   findNameRecordPda,
+  findOffer,
+  getAcceptOfferInstruction,
   getBurnNameInstruction,
   getBuyNameInstruction,
   getCancelListingInstruction,
+  getCancelOfferInstruction,
   getClaimExpiredInstructionAsync,
   getInitConfigInstructionAsync,
   getListNameInstruction,
   getLockTransferInstruction,
+  getMakeOfferInstruction,
   getRedeemNameInstructionAsync,
   getRegisterNameInstructionAsync,
   getRenewNameInstructionAsync,
@@ -461,6 +465,58 @@ program
     });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
     console.log(`  bought ${name} for ${lamportsToSol(l.price)} SOL`);
+  });
+
+program
+  .command("offer <name> <priceSol>")
+  .description("Make a SOL offer on a name (escrows the bid)")
+  .option("--days <n>", "offer duration in days", "30")
+  .action(async (name, priceSol, o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const [nameRecord] = await nameRecordPda(name);
+    const [offer] = await findOffer(name, ctx.signer.address);
+    const ix = getMakeOfferInstruction({
+      buyer: ctx.signer,
+      nameRecord,
+      offer,
+      amount: solToLamports(priceSol),
+      durationSeconds: BigInt(Math.round(Number(o.days) * 86_400)),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(`  offered ${priceSol} SOL on ${name}`);
+  });
+
+program
+  .command("accept-offer <name> <buyer>")
+  .description("Accept a bidder's offer (owner): sell the name for the escrowed SOL")
+  .action(async (name, buyer, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const [nameRecord] = await nameRecordPda(name);
+    const [offer] = await findOffer(name, address(buyer));
+    const cfg = await getConfig(ctx);
+    const ix = getAcceptOfferInstruction({
+      owner: ctx.signer,
+      buyer: address(buyer),
+      solTreasury: cfg.data.solTreasury,
+      config: cfg.address,
+      nameRecord,
+      offer,
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(`  accepted ${buyer}'s offer on ${name}`);
+  });
+
+program
+  .command("cancel-offer <name>")
+  .description("Cancel/reject an offer (bidder, owner, or anyone if expired); refunds the bidder")
+  .option("--buyer <address>", "the bidder (default: signer)")
+  .action(async (name, o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const bidder = o.buyer ? address(o.buyer) : ctx.signer.address;
+    const [nameRecord] = await nameRecordPda(name);
+    const [offer] = await findOffer(name, bidder);
+    const ix = getCancelOfferInstruction({ canceller: ctx.signer, buyer: bidder, nameRecord, offer });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
 
 // --- reads -----------------------------------------------------------------

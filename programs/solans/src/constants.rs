@@ -5,6 +5,7 @@ pub const CONFIG_SEED: &[u8] = b"config";
 pub const NAME_SEED: &[u8] = b"name";
 pub const REVERSE_SEED: &[u8] = b"reverse";
 pub const LISTING_SEED: &[u8] = b"listing";
+pub const OFFER_SEED: &[u8] = b"offer";
 
 // Marketplace fee math: basis-point denominator + a hard cap on the fee.
 pub const BPS_DENOMINATOR: u64 = 10_000;

@@ -74,6 +74,10 @@ export const SOLANS_ERROR__SELF_PURCHASE = 0x178b; // 6027
 export const SOLANS_ERROR__PRICE_MISMATCH = 0x178c; // 6028
 /** InvalidFeeBps: Marketplace fee exceeds the maximum allowed */
 export const SOLANS_ERROR__INVALID_FEE_BPS = 0x178d; // 6029
+/** OfferExpired: Offer has expired */
+export const SOLANS_ERROR__OFFER_EXPIRED = 0x178e; // 6030
+/** NotOfferer: Signer cannot cancel this offer */
+export const SOLANS_ERROR__NOT_OFFERER = 0x178f; // 6031
 
 export type SolansError =
   | typeof SOLANS_ERROR__INVALID_FEE_BPS
@@ -93,9 +97,11 @@ export type SolansError =
   | typeof SOLANS_ERROR__NOT_AUTHORIZED
   | typeof SOLANS_ERROR__NOT_EXPIRED
   | typeof SOLANS_ERROR__NOT_LISTED
+  | typeof SOLANS_ERROR__NOT_OFFERER
   | typeof SOLANS_ERROR__NOT_OWNER
   | typeof SOLANS_ERROR__NOT_PARENT
   | typeof SOLANS_ERROR__NOT_SELLER
+  | typeof SOLANS_ERROR__OFFER_EXPIRED
   | typeof SOLANS_ERROR__PARENT_EXPIRED
   | typeof SOLANS_ERROR__PRICE_MISMATCH
   | typeof SOLANS_ERROR__RECORD_NOT_FOUND
@@ -127,9 +133,11 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__NOT_AUTHORIZED]: `Signer is not the owner or controller of this name`,
     [SOLANS_ERROR__NOT_EXPIRED]: `Name is not past its expiration + grace period`,
     [SOLANS_ERROR__NOT_LISTED]: `Name is not listed for sale`,
+    [SOLANS_ERROR__NOT_OFFERER]: `Signer cannot cancel this offer`,
     [SOLANS_ERROR__NOT_OWNER]: `Signer is not the owner of this name`,
     [SOLANS_ERROR__NOT_PARENT]: `Account is not a subdomain of the provided parent`,
     [SOLANS_ERROR__NOT_SELLER]: `Signer is not the seller of this listing`,
+    [SOLANS_ERROR__OFFER_EXPIRED]: `Offer has expired`,
     [SOLANS_ERROR__PARENT_EXPIRED]: `Parent name has expired`,
     [SOLANS_ERROR__PRICE_MISMATCH]: `Listing price does not match the expected price`,
     [SOLANS_ERROR__RECORD_NOT_FOUND]: `Record key not found`,

@@ -31,9 +31,12 @@ import {
   findConfigPda,
   findListing,
   findNameRecordPda,
+  findOffer,
+  getAcceptOfferInstruction,
   getBuyNameInstruction,
   getInitConfigInstructionAsync,
   getListNameInstruction,
+  getMakeOfferInstruction,
   getRegisterNameInstructionAsync,
   getWrapSubdomainInstructionAsync,
   nameInfo,
@@ -263,6 +266,44 @@ export async function buyName(
   const [config] = await findConfigPda();
   await send(env.svm, buyer, [
     getBuyNameInstruction({ buyer, seller, solTreasury: env.solTreasury, config, nameRecord, listing, expectedPrice }),
+  ]);
+}
+
+/** Make a SOL offer on `name` as `buyer` (escrows `amount` lamports). Returns the offer PDA. */
+export async function makeOffer(
+  env: TestEnv,
+  name: string,
+  buyer: KeyPairSigner,
+  amount: bigint,
+  opts?: { durationSeconds?: bigint },
+): Promise<Address> {
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(name).hash });
+  const [offer] = await findOffer(name, buyer.address);
+  await send(env.svm, buyer, [
+    getMakeOfferInstruction({
+      buyer,
+      nameRecord,
+      offer,
+      amount,
+      durationSeconds: opts?.durationSeconds ?? BigInt(30 * 86_400),
+    }),
+  ]);
+  return offer;
+}
+
+/** Accept `buyerAddr`'s offer on `name` as the owner (default env.payer). */
+export async function acceptOffer(
+  env: TestEnv,
+  name: string,
+  buyerAddr: Address,
+  owner?: KeyPairSigner,
+): Promise<void> {
+  const signer = owner ?? env.payer;
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(name).hash });
+  const [offer] = await findOffer(name, buyerAddr);
+  const [config] = await findConfigPda();
+  await send(env.svm, signer, [
+    getAcceptOfferInstruction({ owner: signer, buyer: buyerAddr, solTreasury: env.solTreasury, config, nameRecord, offer }),
   ]);
 }
 

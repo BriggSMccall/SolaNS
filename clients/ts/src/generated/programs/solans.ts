@@ -38,6 +38,7 @@ import {
   getConfigCodec,
   getListingCodec,
   getNameRecordCodec,
+  getOfferCodec,
   getReverseRecordCodec,
   type Config,
   type ConfigArgs,
@@ -45,17 +46,22 @@ import {
   type ListingArgs,
   type NameRecord,
   type NameRecordArgs,
+  type Offer,
+  type OfferArgs,
   type ReverseRecord,
   type ReverseRecordArgs,
 } from "../accounts";
 import {
+  getAcceptOfferInstructionAsync,
   getBurnNameInstruction,
   getBuyNameInstructionAsync,
   getCancelListingInstruction,
+  getCancelOfferInstruction,
   getClaimExpiredInstructionAsync,
   getInitConfigInstructionAsync,
   getListNameInstruction,
   getLockTransferInstruction,
+  getMakeOfferInstruction,
   getRedeemNameInstructionAsync,
   getRegisterNameInstructionAsync,
   getRenewNameInstructionAsync,
@@ -70,13 +76,16 @@ import {
   getUpdateListingInstruction,
   getUpdateRecordInstruction,
   getWrapSubdomainInstructionAsync,
+  parseAcceptOfferInstruction,
   parseBurnNameInstruction,
   parseBuyNameInstruction,
   parseCancelListingInstruction,
+  parseCancelOfferInstruction,
   parseClaimExpiredInstruction,
   parseInitConfigInstruction,
   parseListNameInstruction,
   parseLockTransferInstruction,
+  parseMakeOfferInstruction,
   parseRedeemNameInstruction,
   parseRegisterNameInstruction,
   parseRenewNameInstruction,
@@ -91,20 +100,26 @@ import {
   parseUpdateListingInstruction,
   parseUpdateRecordInstruction,
   parseWrapSubdomainInstruction,
+  type AcceptOfferAsyncInput,
   type BurnNameInput,
   type BuyNameAsyncInput,
   type CancelListingInput,
+  type CancelOfferInput,
   type ClaimExpiredAsyncInput,
   type InitConfigAsyncInput,
   type ListNameInput,
   type LockTransferInput,
+  type MakeOfferInput,
+  type ParsedAcceptOfferInstruction,
   type ParsedBurnNameInstruction,
   type ParsedBuyNameInstruction,
   type ParsedCancelListingInstruction,
+  type ParsedCancelOfferInstruction,
   type ParsedClaimExpiredInstruction,
   type ParsedInitConfigInstruction,
   type ParsedListNameInstruction,
   type ParsedLockTransferInstruction,
+  type ParsedMakeOfferInstruction,
   type ParsedRedeemNameInstruction,
   type ParsedRegisterNameInstruction,
   type ParsedRenewNameInstruction,
@@ -149,6 +164,7 @@ export enum SolansAccount {
   Config,
   Listing,
   NameRecord,
+  Offer,
   ReverseRecord,
 }
 
@@ -193,6 +209,17 @@ export function identifySolansAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([215, 88, 60, 71, 170, 162, 73, 229]),
+      ),
+      0,
+    )
+  ) {
+    return SolansAccount.Offer;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([125, 98, 59, 20, 159, 18, 85, 123]),
       ),
       0,
@@ -207,13 +234,16 @@ export function identifySolansAccount(
 }
 
 export enum SolansInstruction {
+  AcceptOffer,
   BurnName,
   BuyName,
   CancelListing,
+  CancelOffer,
   ClaimExpired,
   InitConfig,
   ListName,
   LockTransfer,
+  MakeOffer,
   RedeemName,
   RegisterName,
   RenewName,
@@ -234,6 +264,17 @@ export function identifySolansInstruction(
   instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): SolansInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([227, 82, 234, 131, 1, 18, 48, 2]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.AcceptOffer;
+  }
   if (
     containsBytes(
       data,
@@ -266,6 +307,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.CancelListing;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([92, 203, 223, 40, 92, 89, 53, 119]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.CancelOffer;
   }
   if (
     containsBytes(
@@ -310,6 +362,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.LockTransfer;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([214, 98, 97, 35, 59, 12, 44, 178]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.MakeOffer;
   }
   if (
     containsBytes(
@@ -475,6 +538,9 @@ export type ParsedSolansInstruction<
   TProgram extends string = "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf",
 > =
   | ({
+      instructionType: SolansInstruction.AcceptOffer;
+    } & ParsedAcceptOfferInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.BurnName;
     } & ParsedBurnNameInstruction<TProgram>)
   | ({
@@ -483,6 +549,9 @@ export type ParsedSolansInstruction<
   | ({
       instructionType: SolansInstruction.CancelListing;
     } & ParsedCancelListingInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.CancelOffer;
+    } & ParsedCancelOfferInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.ClaimExpired;
     } & ParsedClaimExpiredInstruction<TProgram>)
@@ -495,6 +564,9 @@ export type ParsedSolansInstruction<
   | ({
       instructionType: SolansInstruction.LockTransfer;
     } & ParsedLockTransferInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.MakeOffer;
+    } & ParsedMakeOfferInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.RedeemName;
     } & ParsedRedeemNameInstruction<TProgram>)
@@ -543,6 +615,13 @@ export function parseSolansInstruction<TProgram extends string>(
 ): ParsedSolansInstruction<TProgram> {
   const instructionType = identifySolansInstruction(instruction);
   switch (instructionType) {
+    case SolansInstruction.AcceptOffer: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.AcceptOffer,
+        ...parseAcceptOfferInstruction(instruction),
+      };
+    }
     case SolansInstruction.BurnName: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -562,6 +641,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.CancelListing,
         ...parseCancelListingInstruction(instruction),
+      };
+    }
+    case SolansInstruction.CancelOffer: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.CancelOffer,
+        ...parseCancelOfferInstruction(instruction),
       };
     }
     case SolansInstruction.ClaimExpired: {
@@ -590,6 +676,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.LockTransfer,
         ...parseLockTransferInstruction(instruction),
+      };
+    }
+    case SolansInstruction.MakeOffer: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.MakeOffer,
+        ...parseMakeOfferInstruction(instruction),
       };
     }
     case SolansInstruction.RedeemName: {
@@ -714,11 +807,17 @@ export type SolansPluginAccounts = {
     SelfFetchFunctions<ListingArgs, Listing>;
   nameRecord: ReturnType<typeof getNameRecordCodec> &
     SelfFetchFunctions<NameRecordArgs, NameRecord>;
+  offer: ReturnType<typeof getOfferCodec> &
+    SelfFetchFunctions<OfferArgs, Offer>;
   reverseRecord: ReturnType<typeof getReverseRecordCodec> &
     SelfFetchFunctions<ReverseRecordArgs, ReverseRecord>;
 };
 
 export type SolansPluginInstructions = {
+  acceptOffer: (
+    input: AcceptOfferAsyncInput,
+  ) => ReturnType<typeof getAcceptOfferInstructionAsync> &
+    SelfPlanAndSendFunctions;
   burnName: (
     input: BurnNameInput,
   ) => ReturnType<typeof getBurnNameInstruction> & SelfPlanAndSendFunctions;
@@ -729,6 +828,9 @@ export type SolansPluginInstructions = {
     input: CancelListingInput,
   ) => ReturnType<typeof getCancelListingInstruction> &
     SelfPlanAndSendFunctions;
+  cancelOffer: (
+    input: CancelOfferInput,
+  ) => ReturnType<typeof getCancelOfferInstruction> & SelfPlanAndSendFunctions;
   claimExpired: (
     input: ClaimExpiredAsyncInput,
   ) => ReturnType<typeof getClaimExpiredInstructionAsync> &
@@ -743,6 +845,9 @@ export type SolansPluginInstructions = {
   lockTransfer: (
     input: LockTransferInput,
   ) => ReturnType<typeof getLockTransferInstruction> & SelfPlanAndSendFunctions;
+  makeOffer: (
+    input: MakeOfferInput,
+  ) => ReturnType<typeof getMakeOfferInstruction> & SelfPlanAndSendFunctions;
   redeemName: (
     input: RedeemNameAsyncInput,
   ) => ReturnType<typeof getRedeemNameInstructionAsync> &
@@ -822,9 +927,15 @@ export function solansProgram() {
           config: addSelfFetchFunctions(client, getConfigCodec()),
           listing: addSelfFetchFunctions(client, getListingCodec()),
           nameRecord: addSelfFetchFunctions(client, getNameRecordCodec()),
+          offer: addSelfFetchFunctions(client, getOfferCodec()),
           reverseRecord: addSelfFetchFunctions(client, getReverseRecordCodec()),
         },
         instructions: {
+          acceptOffer: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getAcceptOfferInstructionAsync(input),
+            ),
           burnName: (input) =>
             addSelfPlanAndSendFunctions(client, getBurnNameInstruction(input)),
           buyName: (input) =>
@@ -836,6 +947,11 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getCancelListingInstruction(input),
+            ),
+          cancelOffer: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getCancelOfferInstruction(input),
             ),
           claimExpired: (input) =>
             addSelfPlanAndSendFunctions(
@@ -854,6 +970,8 @@ export function solansProgram() {
               client,
               getLockTransferInstruction(input),
             ),
+          makeOffer: (input) =>
+            addSelfPlanAndSendFunctions(client, getMakeOfferInstruction(input)),
           redeemName: (input) =>
             addSelfPlanAndSendFunctions(
               client,

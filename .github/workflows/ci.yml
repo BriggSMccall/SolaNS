@@ -78,4 +78,14 @@ jobs:
         run: pnpm typecheck
 
       - name: Test (litesvm)
-        run: pnpm --filter solans-tests test
+        # litesvm's native binding flakily crashes its worker fork at init on CI
+        # linux ("Worker exited unexpectedly"). The suite runs in one fork
+        # (isolate:false), so a clean fork runs everything; retry to ride out the
+        # flaky init. Each attempt is deterministic on its own.
+        run: |
+          for i in 1 2 3 4 5; do
+            pnpm --filter solans-tests test && exit 0
+            echo "::warning::litesvm worker crashed (attempt $i) — retrying"
+            sleep 2
+          done
+          exit 1

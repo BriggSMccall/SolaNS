@@ -53,7 +53,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Match .nvmrc (Node 26) — litesvm's native binding crashes its worker
+          # on Node 22, which is why every litesvm test file failed in CI.
+          node-version-file: .nvmrc
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile

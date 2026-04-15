@@ -29,6 +29,8 @@ describe("multi-TLD", () => {
       owner: env.payer.address,
       payerTokenAccount: env.payerAta,
       treasuryTokenAccount: env.treasury,
+      stakingVault: env.stakingVault,
+      burnVault: env.burnVault,
       paymentMint: env.mint,
       name: "alex",
       tld: "xyz",

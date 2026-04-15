@@ -62,12 +62,20 @@ export type TestEnv = {
   treasuryOwner: Address;
   /** Wallet that receives native-SOL marketplace fees. */
   solTreasury: Address;
+  /** Token account (payment mint) accumulating the stakers' fee share (§8.2). */
+  stakingVault: Address;
+  /** Token account (payment mint) accumulating the burn fee share (§8.2). */
+  burnVault: Address;
 };
 
 /** Marketplace fee in basis points configured by `setupEnv` (2%). */
 export const MARKETPLACE_FEE_BPS = 200;
 /** Per-year price for a premium numeric name configured by `setupEnv`. */
 export const PRICE_NUMERIC = 500_000_000n;
+/** §8.2 fee-split basis points configured by `setupEnv` (treasury gets the remainder, 60%). */
+export const STAKING_FEE_BPS = 2500;
+export const REFERRAL_FEE_BPS = 1000;
+export const BURN_FEE_BPS = 500;
 
 /** Build, sign, and send a transaction; throws on on-chain failure. */
 export async function send(
@@ -183,7 +191,7 @@ export async function mintTokensTo(
 export async function registerName(
   env: TestEnv,
   name: string,
-  opts?: { owner?: Address; years?: number; payer?: KeyPairSigner; payerAta?: Address },
+  opts?: { owner?: Address; years?: number; payer?: KeyPairSigner; payerAta?: Address; referral?: Address },
 ): Promise<Address> {
   const payer = opts?.payer ?? env.payer;
   const { name: label, tld, hash } = nameParts(name);
@@ -192,6 +200,9 @@ export async function registerName(
     owner: opts?.owner ?? payer.address,
     payerTokenAccount: opts?.payerAta ?? env.payerAta,
     treasuryTokenAccount: env.treasury,
+    stakingVault: env.stakingVault,
+    burnVault: env.burnVault,
+    referralTokenAccount: opts?.referral,
     paymentMint: env.mint,
     name: label,
     tld,
@@ -345,6 +356,8 @@ export async function setupEnv(opts?: { gracePeriodSeconds?: bigint }): Promise<
     treasury: mint,
     treasuryOwner: mint,
     solTreasury: solTreasury.address,
+    stakingVault: mint,
+    burnVault: mint,
   };
 
   // Payer ATA with a large balance.
@@ -363,12 +376,25 @@ export async function setupEnv(opts?: { gracePeriodSeconds?: bigint }): Promise<
   env.treasury = treasury;
   env.treasuryOwner = treasuryOwner.address;
 
+  // Fee-split vaults (§8.2): ATAs of fresh owners for the staking + burn shares.
+  for (const which of ["staking", "burn"] as const) {
+    const owner = await generateKeyPairSigner();
+    const [vault] = await findAssociatedTokenPda({ owner: owner.address, mint, tokenProgram: TOKEN_PROGRAM_ADDRESS });
+    await send(svm, payer, [
+      await getCreateAssociatedTokenIdempotentInstructionAsync({ payer, owner: owner.address, mint }),
+    ]);
+    if (which === "staking") env.stakingVault = vault;
+    else env.burnVault = vault;
+  }
+
   // Initialize the registry config.
   await send(svm, payer, [
     await getInitConfigInstructionAsync({
       admin: payer,
       paymentMint: mint,
       treasuryTokenAccount: treasury,
+      stakingVault: env.stakingVault,
+      burnVault: env.burnVault,
       price1: 1_000_000_000n,
       price2: 200_000_000n,
       price3: 50_000_000n,
@@ -380,6 +406,9 @@ export async function setupEnv(opts?: { gracePeriodSeconds?: bigint }): Promise<
       maxYears: 10,
       solTreasury: env.solTreasury,
       marketplaceFeeBps: MARKETPLACE_FEE_BPS,
+      stakingFeeBps: STAKING_FEE_BPS,
+      referralFeeBps: REFERRAL_FEE_BPS,
+      burnFeeBps: BURN_FEE_BPS,
     }),
   ]);
 

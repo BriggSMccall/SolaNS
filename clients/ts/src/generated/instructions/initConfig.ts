@@ -61,6 +61,8 @@ export type InitConfigInstruction<
   TAccountConfig extends string | AccountMeta<string> = string,
   TAccountPaymentMint extends string | AccountMeta<string> = string,
   TAccountTreasuryTokenAccount extends string | AccountMeta<string> = string,
+  TAccountStakingVault extends string | AccountMeta<string> = string,
+  TAccountBurnVault extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends string | AccountMeta<string> =
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
   TAccountSystemProgram extends string | AccountMeta<string> =
@@ -83,6 +85,12 @@ export type InitConfigInstruction<
       TAccountTreasuryTokenAccount extends string
         ? ReadonlyAccount<TAccountTreasuryTokenAccount>
         : TAccountTreasuryTokenAccount,
+      TAccountStakingVault extends string
+        ? ReadonlyAccount<TAccountStakingVault>
+        : TAccountStakingVault,
+      TAccountBurnVault extends string
+        ? ReadonlyAccount<TAccountBurnVault>
+        : TAccountBurnVault,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
@@ -106,6 +114,9 @@ export type InitConfigInstructionData = {
   maxYears: number;
   solTreasury: Address;
   marketplaceFeeBps: number;
+  stakingFeeBps: number;
+  referralFeeBps: number;
+  burnFeeBps: number;
 };
 
 export type InitConfigInstructionDataArgs = {
@@ -120,6 +131,9 @@ export type InitConfigInstructionDataArgs = {
   maxYears: number;
   solTreasury: Address;
   marketplaceFeeBps: number;
+  stakingFeeBps: number;
+  referralFeeBps: number;
+  burnFeeBps: number;
 };
 
 export function getInitConfigInstructionDataEncoder(): FixedSizeEncoder<InitConfigInstructionDataArgs> {
@@ -137,6 +151,9 @@ export function getInitConfigInstructionDataEncoder(): FixedSizeEncoder<InitConf
       ["maxYears", getU16Encoder()],
       ["solTreasury", getAddressEncoder()],
       ["marketplaceFeeBps", getU16Encoder()],
+      ["stakingFeeBps", getU16Encoder()],
+      ["referralFeeBps", getU16Encoder()],
+      ["burnFeeBps", getU16Encoder()],
     ]),
     (value) => ({ ...value, discriminator: INIT_CONFIG_DISCRIMINATOR }),
   );
@@ -156,6 +173,9 @@ export function getInitConfigInstructionDataDecoder(): FixedSizeDecoder<InitConf
     ["maxYears", getU16Decoder()],
     ["solTreasury", getAddressDecoder()],
     ["marketplaceFeeBps", getU16Decoder()],
+    ["stakingFeeBps", getU16Decoder()],
+    ["referralFeeBps", getU16Decoder()],
+    ["burnFeeBps", getU16Decoder()],
   ]);
 }
 
@@ -174,6 +194,8 @@ export type InitConfigAsyncInput<
   TAccountConfig extends string = string,
   TAccountPaymentMint extends string = string,
   TAccountTreasuryTokenAccount extends string = string,
+  TAccountStakingVault extends string = string,
+  TAccountBurnVault extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
@@ -183,6 +205,10 @@ export type InitConfigAsyncInput<
   paymentMint: Address<TAccountPaymentMint>;
   /** Treasury token account that will receive fees; must be for `payment_mint`. */
   treasuryTokenAccount: Address<TAccountTreasuryTokenAccount>;
+  /** Vault accumulating the `$SOLANS` stakers' fee share (§8.2). */
+  stakingVault: Address<TAccountStakingVault>;
+  /** Vault accumulating the burn (buyback) fee share (§8.2). */
+  burnVault: Address<TAccountBurnVault>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   price1: InitConfigInstructionDataArgs["price1"];
@@ -196,6 +222,9 @@ export type InitConfigAsyncInput<
   maxYears: InitConfigInstructionDataArgs["maxYears"];
   solTreasury: InitConfigInstructionDataArgs["solTreasury"];
   marketplaceFeeBps: InitConfigInstructionDataArgs["marketplaceFeeBps"];
+  stakingFeeBps: InitConfigInstructionDataArgs["stakingFeeBps"];
+  referralFeeBps: InitConfigInstructionDataArgs["referralFeeBps"];
+  burnFeeBps: InitConfigInstructionDataArgs["burnFeeBps"];
 };
 
 export async function getInitConfigInstructionAsync<
@@ -203,6 +232,8 @@ export async function getInitConfigInstructionAsync<
   TAccountConfig extends string,
   TAccountPaymentMint extends string,
   TAccountTreasuryTokenAccount extends string,
+  TAccountStakingVault extends string,
+  TAccountBurnVault extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof SOLANS_PROGRAM_ADDRESS,
@@ -212,6 +243,8 @@ export async function getInitConfigInstructionAsync<
     TAccountConfig,
     TAccountPaymentMint,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
     TAccountTokenProgram,
     TAccountSystemProgram
   >,
@@ -223,6 +256,8 @@ export async function getInitConfigInstructionAsync<
     TAccountConfig,
     TAccountPaymentMint,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
     TAccountTokenProgram,
     TAccountSystemProgram
   >
@@ -239,6 +274,8 @@ export async function getInitConfigInstructionAsync<
       value: input.treasuryTokenAccount ?? null,
       isWritable: false,
     },
+    stakingVault: { value: input.stakingVault ?? null, isWritable: false },
+    burnVault: { value: input.burnVault ?? null, isWritable: false },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -270,6 +307,8 @@ export async function getInitConfigInstructionAsync<
       getAccountMeta("config", accounts.config),
       getAccountMeta("paymentMint", accounts.paymentMint),
       getAccountMeta("treasuryTokenAccount", accounts.treasuryTokenAccount),
+      getAccountMeta("stakingVault", accounts.stakingVault),
+      getAccountMeta("burnVault", accounts.burnVault),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
@@ -283,6 +322,8 @@ export async function getInitConfigInstructionAsync<
     TAccountConfig,
     TAccountPaymentMint,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
     TAccountTokenProgram,
     TAccountSystemProgram
   >);
@@ -293,6 +334,8 @@ export type InitConfigInput<
   TAccountConfig extends string = string,
   TAccountPaymentMint extends string = string,
   TAccountTreasuryTokenAccount extends string = string,
+  TAccountStakingVault extends string = string,
+  TAccountBurnVault extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
@@ -302,6 +345,10 @@ export type InitConfigInput<
   paymentMint: Address<TAccountPaymentMint>;
   /** Treasury token account that will receive fees; must be for `payment_mint`. */
   treasuryTokenAccount: Address<TAccountTreasuryTokenAccount>;
+  /** Vault accumulating the `$SOLANS` stakers' fee share (§8.2). */
+  stakingVault: Address<TAccountStakingVault>;
+  /** Vault accumulating the burn (buyback) fee share (§8.2). */
+  burnVault: Address<TAccountBurnVault>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   price1: InitConfigInstructionDataArgs["price1"];
@@ -315,6 +362,9 @@ export type InitConfigInput<
   maxYears: InitConfigInstructionDataArgs["maxYears"];
   solTreasury: InitConfigInstructionDataArgs["solTreasury"];
   marketplaceFeeBps: InitConfigInstructionDataArgs["marketplaceFeeBps"];
+  stakingFeeBps: InitConfigInstructionDataArgs["stakingFeeBps"];
+  referralFeeBps: InitConfigInstructionDataArgs["referralFeeBps"];
+  burnFeeBps: InitConfigInstructionDataArgs["burnFeeBps"];
 };
 
 export function getInitConfigInstruction<
@@ -322,6 +372,8 @@ export function getInitConfigInstruction<
   TAccountConfig extends string,
   TAccountPaymentMint extends string,
   TAccountTreasuryTokenAccount extends string,
+  TAccountStakingVault extends string,
+  TAccountBurnVault extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof SOLANS_PROGRAM_ADDRESS,
@@ -331,6 +383,8 @@ export function getInitConfigInstruction<
     TAccountConfig,
     TAccountPaymentMint,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
     TAccountTokenProgram,
     TAccountSystemProgram
   >,
@@ -341,6 +395,8 @@ export function getInitConfigInstruction<
   TAccountConfig,
   TAccountPaymentMint,
   TAccountTreasuryTokenAccount,
+  TAccountStakingVault,
+  TAccountBurnVault,
   TAccountTokenProgram,
   TAccountSystemProgram
 > {
@@ -356,6 +412,8 @@ export function getInitConfigInstruction<
       value: input.treasuryTokenAccount ?? null,
       isWritable: false,
     },
+    stakingVault: { value: input.stakingVault ?? null, isWritable: false },
+    burnVault: { value: input.burnVault ?? null, isWritable: false },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -384,6 +442,8 @@ export function getInitConfigInstruction<
       getAccountMeta("config", accounts.config),
       getAccountMeta("paymentMint", accounts.paymentMint),
       getAccountMeta("treasuryTokenAccount", accounts.treasuryTokenAccount),
+      getAccountMeta("stakingVault", accounts.stakingVault),
+      getAccountMeta("burnVault", accounts.burnVault),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
@@ -397,6 +457,8 @@ export function getInitConfigInstruction<
     TAccountConfig,
     TAccountPaymentMint,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
     TAccountTokenProgram,
     TAccountSystemProgram
   >);
@@ -414,8 +476,12 @@ export type ParsedInitConfigInstruction<
     paymentMint: TAccountMetas[2];
     /** Treasury token account that will receive fees; must be for `payment_mint`. */
     treasuryTokenAccount: TAccountMetas[3];
-    tokenProgram: TAccountMetas[4];
-    systemProgram: TAccountMetas[5];
+    /** Vault accumulating the `$SOLANS` stakers' fee share (§8.2). */
+    stakingVault: TAccountMetas[4];
+    /** Vault accumulating the burn (buyback) fee share (§8.2). */
+    burnVault: TAccountMetas[5];
+    tokenProgram: TAccountMetas[6];
+    systemProgram: TAccountMetas[7];
   };
   data: InitConfigInstructionData;
 };
@@ -428,12 +494,12 @@ export function parseInitConfigInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitConfigInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+  if (instruction.accounts.length < 8) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 6,
+        expectedAccountMetas: 8,
       },
     );
   }
@@ -450,6 +516,8 @@ export function parseInitConfigInstruction<
       config: getNextAccount(),
       paymentMint: getNextAccount(),
       treasuryTokenAccount: getNextAccount(),
+      stakingVault: getNextAccount(),
+      burnVault: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },

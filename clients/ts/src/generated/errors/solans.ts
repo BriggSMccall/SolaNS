@@ -78,9 +78,12 @@ export const SOLANS_ERROR__INVALID_FEE_BPS = 0x178d; // 6029
 export const SOLANS_ERROR__OFFER_EXPIRED = 0x178e; // 6030
 /** NotOfferer: Signer cannot cancel this offer */
 export const SOLANS_ERROR__NOT_OFFERER = 0x178f; // 6031
+/** InvalidFeeSplit: Fee-split basis points must sum to less than 10000 */
+export const SOLANS_ERROR__INVALID_FEE_SPLIT = 0x1790; // 6032
 
 export type SolansError =
   | typeof SOLANS_ERROR__INVALID_FEE_BPS
+  | typeof SOLANS_ERROR__INVALID_FEE_SPLIT
   | typeof SOLANS_ERROR__INVALID_MINT
   | typeof SOLANS_ERROR__INVALID_NAME_CHARACTER
   | typeof SOLANS_ERROR__INVALID_NAME_HYPHEN
@@ -117,6 +120,7 @@ let solansErrorMessages: Record<SolansError, string> | undefined;
 if (process.env["NODE_ENV"] !== "production") {
   solansErrorMessages = {
     [SOLANS_ERROR__INVALID_FEE_BPS]: `Marketplace fee exceeds the maximum allowed`,
+    [SOLANS_ERROR__INVALID_FEE_SPLIT]: `Fee-split basis points must sum to less than 10000`,
     [SOLANS_ERROR__INVALID_MINT]: `Payment mint does not match config`,
     [SOLANS_ERROR__INVALID_NAME_CHARACTER]: `Name contains invalid characters (allowed: lowercase a-z, 0-9, hyphen)`,
     [SOLANS_ERROR__INVALID_NAME_HYPHEN]: `Invalid hyphen position (no leading, trailing, or consecutive hyphens)`,

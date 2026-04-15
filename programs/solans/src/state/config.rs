@@ -30,6 +30,14 @@ pub struct Config {
     pub sol_treasury: Pubkey,
     /// Marketplace fee in basis points (e.g. 200 = 2%), capped at `MAX_FEE_BPS`.
     pub marketplace_fee_bps: u16,
+    /// Token account (payment mint) accumulating the `$SOLANS` stakers' fee share.
+    pub staking_vault: Pubkey,
+    /// Token account (payment mint) accumulating the burn (buyback) fee share.
+    pub burn_vault: Pubkey,
+    /// Protocol fee-split (§8.2) in basis points. Treasury gets the remainder.
+    pub staking_fee_bps: u16,
+    pub referral_fee_bps: u16,
+    pub burn_fee_bps: u16,
     /// Canonical PDA bump.
     pub bump: u8,
 }
@@ -57,5 +65,26 @@ impl Config {
         } else {
             self.price_for_len(b.len())
         }
+    }
+
+    /// Split a fee into (treasury, staking, referral, burn) shares per §8.2.
+    /// Each non-treasury share floors `amount * bps / 10_000`; treasury takes the
+    /// remainder so the four shares always sum to exactly `amount` (no dust lost).
+    pub fn fee_split(&self, amount: u64) -> (u64, u64, u64, u64) {
+        // `amount`(u64) * `bps`(≤10_000) fits in u128, and `* bps / 10_000` ≤ amount,
+        // so saturating ops never actually saturate — they're just a safe floor.
+        let share = |bps: u16| -> u64 {
+            ((amount as u128).saturating_mul(bps as u128)
+                / (crate::constants::BPS_DENOMINATOR as u128)) as u64
+        };
+        let staking = share(self.staking_fee_bps);
+        let referral = share(self.referral_fee_bps);
+        let burn = share(self.burn_fee_bps);
+        // bps sum < 10_000 (validated at config time) ⇒ the three shares < amount.
+        let treasury = amount
+            .saturating_sub(staking)
+            .saturating_sub(referral)
+            .saturating_sub(burn);
+        (treasury, staking, referral, burn)
     }
 }

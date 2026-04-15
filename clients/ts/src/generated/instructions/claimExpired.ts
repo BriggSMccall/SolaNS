@@ -64,6 +64,9 @@ export type ClaimExpiredInstruction<
   TAccountNameRecord extends string | AccountMeta<string> = string,
   TAccountPayerTokenAccount extends string | AccountMeta<string> = string,
   TAccountTreasuryTokenAccount extends string | AccountMeta<string> = string,
+  TAccountStakingVault extends string | AccountMeta<string> = string,
+  TAccountBurnVault extends string | AccountMeta<string> = string,
+  TAccountReferralTokenAccount extends string | AccountMeta<string> = string,
   TAccountPaymentMint extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends string | AccountMeta<string> =
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
@@ -88,6 +91,15 @@ export type ClaimExpiredInstruction<
       TAccountTreasuryTokenAccount extends string
         ? WritableAccount<TAccountTreasuryTokenAccount>
         : TAccountTreasuryTokenAccount,
+      TAccountStakingVault extends string
+        ? WritableAccount<TAccountStakingVault>
+        : TAccountStakingVault,
+      TAccountBurnVault extends string
+        ? WritableAccount<TAccountBurnVault>
+        : TAccountBurnVault,
+      TAccountReferralTokenAccount extends string
+        ? WritableAccount<TAccountReferralTokenAccount>
+        : TAccountReferralTokenAccount,
       TAccountPaymentMint extends string
         ? ReadonlyAccount<TAccountPaymentMint>
         : TAccountPaymentMint,
@@ -148,6 +160,9 @@ export type ClaimExpiredAsyncInput<
   TAccountNameRecord extends string = string,
   TAccountPayerTokenAccount extends string = string,
   TAccountTreasuryTokenAccount extends string = string,
+  TAccountStakingVault extends string = string,
+  TAccountBurnVault extends string = string,
+  TAccountReferralTokenAccount extends string = string,
   TAccountPaymentMint extends string = string,
   TAccountTokenProgram extends string = string,
 > = {
@@ -156,6 +171,10 @@ export type ClaimExpiredAsyncInput<
   nameRecord: Address<TAccountNameRecord>;
   payerTokenAccount: Address<TAccountPayerTokenAccount>;
   treasuryTokenAccount: Address<TAccountTreasuryTokenAccount>;
+  stakingVault: Address<TAccountStakingVault>;
+  burnVault: Address<TAccountBurnVault>;
+  /** Optional referrer (gets the §8.2 referral share); omit to fold it into treasury. */
+  referralTokenAccount?: Address<TAccountReferralTokenAccount>;
   paymentMint: Address<TAccountPaymentMint>;
   tokenProgram?: Address<TAccountTokenProgram>;
   name: ClaimExpiredInstructionDataArgs["name"];
@@ -169,6 +188,9 @@ export async function getClaimExpiredInstructionAsync<
   TAccountNameRecord extends string,
   TAccountPayerTokenAccount extends string,
   TAccountTreasuryTokenAccount extends string,
+  TAccountStakingVault extends string,
+  TAccountBurnVault extends string,
+  TAccountReferralTokenAccount extends string,
   TAccountPaymentMint extends string,
   TAccountTokenProgram extends string,
   TProgramAddress extends Address = typeof SOLANS_PROGRAM_ADDRESS,
@@ -179,6 +201,9 @@ export async function getClaimExpiredInstructionAsync<
     TAccountNameRecord,
     TAccountPayerTokenAccount,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
+    TAccountReferralTokenAccount,
     TAccountPaymentMint,
     TAccountTokenProgram
   >,
@@ -191,6 +216,9 @@ export async function getClaimExpiredInstructionAsync<
     TAccountNameRecord,
     TAccountPayerTokenAccount,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
+    TAccountReferralTokenAccount,
     TAccountPaymentMint,
     TAccountTokenProgram
   >
@@ -209,6 +237,12 @@ export async function getClaimExpiredInstructionAsync<
     },
     treasuryTokenAccount: {
       value: input.treasuryTokenAccount ?? null,
+      isWritable: true,
+    },
+    stakingVault: { value: input.stakingVault ?? null, isWritable: true },
+    burnVault: { value: input.burnVault ?? null, isWritable: true },
+    referralTokenAccount: {
+      value: input.referralTokenAccount ?? null,
       isWritable: true,
     },
     paymentMint: { value: input.paymentMint ?? null, isWritable: false },
@@ -239,6 +273,9 @@ export async function getClaimExpiredInstructionAsync<
       getAccountMeta("nameRecord", accounts.nameRecord),
       getAccountMeta("payerTokenAccount", accounts.payerTokenAccount),
       getAccountMeta("treasuryTokenAccount", accounts.treasuryTokenAccount),
+      getAccountMeta("stakingVault", accounts.stakingVault),
+      getAccountMeta("burnVault", accounts.burnVault),
+      getAccountMeta("referralTokenAccount", accounts.referralTokenAccount),
       getAccountMeta("paymentMint", accounts.paymentMint),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
     ],
@@ -253,6 +290,9 @@ export async function getClaimExpiredInstructionAsync<
     TAccountNameRecord,
     TAccountPayerTokenAccount,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
+    TAccountReferralTokenAccount,
     TAccountPaymentMint,
     TAccountTokenProgram
   >);
@@ -264,6 +304,9 @@ export type ClaimExpiredInput<
   TAccountNameRecord extends string = string,
   TAccountPayerTokenAccount extends string = string,
   TAccountTreasuryTokenAccount extends string = string,
+  TAccountStakingVault extends string = string,
+  TAccountBurnVault extends string = string,
+  TAccountReferralTokenAccount extends string = string,
   TAccountPaymentMint extends string = string,
   TAccountTokenProgram extends string = string,
 > = {
@@ -272,6 +315,10 @@ export type ClaimExpiredInput<
   nameRecord: Address<TAccountNameRecord>;
   payerTokenAccount: Address<TAccountPayerTokenAccount>;
   treasuryTokenAccount: Address<TAccountTreasuryTokenAccount>;
+  stakingVault: Address<TAccountStakingVault>;
+  burnVault: Address<TAccountBurnVault>;
+  /** Optional referrer (gets the §8.2 referral share); omit to fold it into treasury. */
+  referralTokenAccount?: Address<TAccountReferralTokenAccount>;
   paymentMint: Address<TAccountPaymentMint>;
   tokenProgram?: Address<TAccountTokenProgram>;
   name: ClaimExpiredInstructionDataArgs["name"];
@@ -285,6 +332,9 @@ export function getClaimExpiredInstruction<
   TAccountNameRecord extends string,
   TAccountPayerTokenAccount extends string,
   TAccountTreasuryTokenAccount extends string,
+  TAccountStakingVault extends string,
+  TAccountBurnVault extends string,
+  TAccountReferralTokenAccount extends string,
   TAccountPaymentMint extends string,
   TAccountTokenProgram extends string,
   TProgramAddress extends Address = typeof SOLANS_PROGRAM_ADDRESS,
@@ -295,6 +345,9 @@ export function getClaimExpiredInstruction<
     TAccountNameRecord,
     TAccountPayerTokenAccount,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
+    TAccountReferralTokenAccount,
     TAccountPaymentMint,
     TAccountTokenProgram
   >,
@@ -306,6 +359,9 @@ export function getClaimExpiredInstruction<
   TAccountNameRecord,
   TAccountPayerTokenAccount,
   TAccountTreasuryTokenAccount,
+  TAccountStakingVault,
+  TAccountBurnVault,
+  TAccountReferralTokenAccount,
   TAccountPaymentMint,
   TAccountTokenProgram
 > {
@@ -323,6 +379,12 @@ export function getClaimExpiredInstruction<
     },
     treasuryTokenAccount: {
       value: input.treasuryTokenAccount ?? null,
+      isWritable: true,
+    },
+    stakingVault: { value: input.stakingVault ?? null, isWritable: true },
+    burnVault: { value: input.burnVault ?? null, isWritable: true },
+    referralTokenAccount: {
+      value: input.referralTokenAccount ?? null,
       isWritable: true,
     },
     paymentMint: { value: input.paymentMint ?? null, isWritable: false },
@@ -350,6 +412,9 @@ export function getClaimExpiredInstruction<
       getAccountMeta("nameRecord", accounts.nameRecord),
       getAccountMeta("payerTokenAccount", accounts.payerTokenAccount),
       getAccountMeta("treasuryTokenAccount", accounts.treasuryTokenAccount),
+      getAccountMeta("stakingVault", accounts.stakingVault),
+      getAccountMeta("burnVault", accounts.burnVault),
+      getAccountMeta("referralTokenAccount", accounts.referralTokenAccount),
       getAccountMeta("paymentMint", accounts.paymentMint),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
     ],
@@ -364,6 +429,9 @@ export function getClaimExpiredInstruction<
     TAccountNameRecord,
     TAccountPayerTokenAccount,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
+    TAccountReferralTokenAccount,
     TAccountPaymentMint,
     TAccountTokenProgram
   >);
@@ -380,8 +448,12 @@ export type ParsedClaimExpiredInstruction<
     nameRecord: TAccountMetas[2];
     payerTokenAccount: TAccountMetas[3];
     treasuryTokenAccount: TAccountMetas[4];
-    paymentMint: TAccountMetas[5];
-    tokenProgram: TAccountMetas[6];
+    stakingVault: TAccountMetas[5];
+    burnVault: TAccountMetas[6];
+    /** Optional referrer (gets the §8.2 referral share); omit to fold it into treasury. */
+    referralTokenAccount?: TAccountMetas[7] | undefined;
+    paymentMint: TAccountMetas[8];
+    tokenProgram: TAccountMetas[9];
   };
   data: ClaimExpiredInstructionData;
 };
@@ -394,12 +466,12 @@ export function parseClaimExpiredInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedClaimExpiredInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 7) {
+  if (instruction.accounts.length < 10) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 7,
+        expectedAccountMetas: 10,
       },
     );
   }
@@ -409,6 +481,12 @@ export function parseClaimExpiredInstruction<
     accountIndex += 1;
     return accountMeta;
   };
+  const getNextOptionalAccount = () => {
+    const accountMeta = getNextAccount();
+    return accountMeta.address === SOLANS_PROGRAM_ADDRESS
+      ? undefined
+      : accountMeta;
+  };
   return {
     programAddress: instruction.programAddress,
     accounts: {
@@ -417,6 +495,9 @@ export function parseClaimExpiredInstruction<
       nameRecord: getNextAccount(),
       payerTokenAccount: getNextAccount(),
       treasuryTokenAccount: getNextAccount(),
+      stakingVault: getNextAccount(),
+      burnVault: getNextAccount(),
+      referralTokenAccount: getNextOptionalAccount(),
       paymentMint: getNextAccount(),
       tokenProgram: getNextAccount(),
     },

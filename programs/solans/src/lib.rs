@@ -30,6 +30,9 @@ pub mod solans {
         max_years: u16,
         sol_treasury: Pubkey,
         marketplace_fee_bps: u16,
+        staking_fee_bps: u16,
+        referral_fee_bps: u16,
+        burn_fee_bps: u16,
     ) -> Result<()> {
         instructions::init_config::handler(
             ctx,
@@ -44,6 +47,9 @@ pub mod solans {
             max_years,
             sol_treasury,
             marketplace_fee_bps,
+            staking_fee_bps,
+            referral_fee_bps,
+            burn_fee_bps,
         )
     }
 
@@ -180,6 +186,9 @@ pub mod solans {
         max_years: u16,
         sol_treasury: Pubkey,
         marketplace_fee_bps: u16,
+        staking_fee_bps: u16,
+        referral_fee_bps: u16,
+        burn_fee_bps: u16,
     ) -> Result<()> {
         instructions::update_config::handler(
             ctx,
@@ -194,6 +203,9 @@ pub mod solans {
             max_years,
             sol_treasury,
             marketplace_fee_bps,
+            staking_fee_bps,
+            referral_fee_bps,
+            burn_fee_bps,
         )
     }
 }

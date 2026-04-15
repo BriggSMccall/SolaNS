@@ -2,7 +2,7 @@ use crate::constants::*;
 use crate::error::SolansError;
 use crate::state::{Config, NameRecord};
 use crate::utils::{
-    charge_fee, compute_name_hash, validate_name, validate_tld, validate_years, years_to_secs,
+    compute_name_hash, distribute_fee, validate_name, validate_tld, validate_years, years_to_secs,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
@@ -24,14 +24,32 @@ pub struct ClaimExpired<'info> {
         token::authority = claimer,
         token::token_program = token_program,
     )]
-    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
+    pub payer_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         mut,
         constraint = treasury_token_account.key() == config.treasury_token_account @ SolansError::InvalidTreasury,
         token::token_program = token_program,
     )]
-    pub treasury_token_account: InterfaceAccount<'info, TokenAccount>,
+    pub treasury_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        constraint = staking_vault.key() == config.staking_vault @ SolansError::InvalidTreasury,
+        token::token_program = token_program,
+    )]
+    pub staking_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        constraint = burn_vault.key() == config.burn_vault @ SolansError::InvalidTreasury,
+        token::token_program = token_program,
+    )]
+    pub burn_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// Optional referrer (gets the §8.2 referral share); omit to fold it into treasury.
+    #[account(mut, token::mint = payment_mint, token::token_program = token_program)]
+    pub referral_token_account: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
 
     #[account(constraint = payment_mint.key() == config.payment_mint @ SolansError::InvalidMint)]
     pub payment_mint: InterfaceAccount<'info, Mint>,
@@ -72,13 +90,17 @@ pub fn handler(ctx: Context<ClaimExpired>, name: String, tld: String, years: u16
         .checked_mul(years as u64)
         .ok_or_else(|| error!(SolansError::MathOverflow))?;
 
-    charge_fee(
+    distribute_fee(
         &ctx.accounts.token_program,
         &ctx.accounts.payer_token_account,
         &ctx.accounts.treasury_token_account,
+        &ctx.accounts.staking_vault,
+        &ctx.accounts.burn_vault,
+        ctx.accounts.referral_token_account.as_deref(),
         &ctx.accounts.payment_mint,
         &ctx.accounts.claimer,
         amount,
+        &ctx.accounts.config,
     )?;
 
     let expires_at = now

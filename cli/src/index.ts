@@ -96,12 +96,19 @@ program
   .option("--max-years <n>", "maximum term", "10")
   .option("--sol-treasury <address>", "wallet receiving SOL marketplace fees (default: signer)")
   .option("--fee-bps <bps>", "marketplace fee in basis points (max 1000)", "200")
+  .option("--staking-vault <address>", "token account for the §8.2 staker share (default: treasury)")
+  .option("--burn-vault <address>", "token account for the §8.2 burn share (default: treasury)")
+  .option("--staking-bps <bps>", "staker fee share, bps", "2500")
+  .option("--referral-bps <bps>", "referral fee share, bps", "1000")
+  .option("--burn-bps <bps>", "burn fee share, bps", "500")
   .action(async (o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const ix = await getInitConfigInstructionAsync({
       admin: ctx.signer,
       paymentMint: address(o.mint),
       treasuryTokenAccount: address(o.treasury),
+      stakingVault: o.stakingVault ? address(o.stakingVault) : address(o.treasury),
+      burnVault: o.burnVault ? address(o.burnVault) : address(o.treasury),
       price1: BigInt(o.price1),
       price2: BigInt(o.price2),
       price3: BigInt(o.price3),
@@ -113,6 +120,9 @@ program
       maxYears: Number(o.maxYears),
       solTreasury: o.solTreasury ? address(o.solTreasury) : ctx.signer.address,
       marketplaceFeeBps: Number(o.feeBps),
+      stakingFeeBps: Number(o.stakingBps),
+      referralFeeBps: Number(o.referralBps),
+      burnFeeBps: Number(o.burnBps),
     });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
@@ -131,6 +141,9 @@ program
   .option("--max-years <n>", "maximum term")
   .option("--sol-treasury <address>", "wallet receiving SOL marketplace fees")
   .option("--fee-bps <bps>", "marketplace fee in basis points (max 1000)")
+  .option("--staking-bps <bps>", "staker fee share, bps")
+  .option("--referral-bps <bps>", "referral fee share, bps")
+  .option("--burn-bps <bps>", "burn fee share, bps")
   .action(async (o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const d = (await getConfig(ctx)).data;
@@ -147,6 +160,9 @@ program
       maxYears: o.maxYears ? Number(o.maxYears) : d.maxYears,
       solTreasury: o.solTreasury ? address(o.solTreasury) : d.solTreasury,
       marketplaceFeeBps: o.feeBps ? Number(o.feeBps) : d.marketplaceFeeBps,
+      stakingFeeBps: o.stakingBps ? Number(o.stakingBps) : d.stakingFeeBps,
+      referralFeeBps: o.referralBps ? Number(o.referralBps) : d.referralFeeBps,
+      burnFeeBps: o.burnBps ? Number(o.burnBps) : d.burnFeeBps,
     });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
@@ -154,9 +170,10 @@ program
 // --- register / renew / claim ----------------------------------------------
 program
   .command("register <name>")
-  .description("Register a name (pays the tiered fee in the configured mint)")
+  .description("Register a name (pays the tiered fee, split 60/25/10/5 per §8.2)")
   .option("--owner <address>", "owner of the name (default: signer)")
   .option("--years <n>", "term in years", "1")
+  .option("--referrer <tokenAccount>", "referrer's token account (gets the 10% referral share)")
   .action(async (name, o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const cfg = await getConfig(ctx);
@@ -166,6 +183,9 @@ program
       owner: o.owner ? address(o.owner) : ctx.signer.address,
       payerTokenAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
       treasuryTokenAccount: cfg.data.treasuryTokenAccount,
+      stakingVault: cfg.data.stakingVault,
+      burnVault: cfg.data.burnVault,
+      referralTokenAccount: o.referrer ? address(o.referrer) : undefined,
       paymentMint: cfg.data.paymentMint,
       name: label,
       tld,
@@ -181,6 +201,7 @@ program
   .command("renew <name>")
   .description("Renew (extend) a name")
   .option("--years <n>", "term in years", "1")
+  .option("--referrer <tokenAccount>", "referrer's token account (gets the 10% referral share)")
   .action(async (name, o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const cfg = await getConfig(ctx);
@@ -191,6 +212,9 @@ program
       nameRecord,
       payerTokenAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
       treasuryTokenAccount: cfg.data.treasuryTokenAccount,
+      stakingVault: cfg.data.stakingVault,
+      burnVault: cfg.data.burnVault,
+      referralTokenAccount: o.referrer ? address(o.referrer) : undefined,
       paymentMint: cfg.data.paymentMint,
       name: label,
       tld,
@@ -203,6 +227,7 @@ program
   .command("claim <name>")
   .description("Claim a name that is past its expiry + grace period")
   .option("--years <n>", "term in years", "1")
+  .option("--referrer <tokenAccount>", "referrer's token account (gets the 10% referral share)")
   .action(async (name, o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const cfg = await getConfig(ctx);
@@ -213,6 +238,9 @@ program
       nameRecord,
       payerTokenAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
       treasuryTokenAccount: cfg.data.treasuryTokenAccount,
+      stakingVault: cfg.data.stakingVault,
+      burnVault: cfg.data.burnVault,
+      referralTokenAccount: o.referrer ? address(o.referrer) : undefined,
       paymentMint: cfg.data.paymentMint,
       name: label,
       tld,

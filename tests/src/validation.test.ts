@@ -27,6 +27,8 @@ describe("on-chain validation (defense-in-depth)", () => {
       owner: env.payer.address,
       payerTokenAccount: env.payerAta,
       treasuryTokenAccount: env.treasury,
+      stakingVault: env.stakingVault,
+      burnVault: env.burnVault,
       paymentMint: env.mint,
       name,
       tld: "sol",

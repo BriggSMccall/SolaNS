@@ -89,6 +89,9 @@ export type UpdateConfigInstructionData = {
   maxYears: number;
   solTreasury: Address;
   marketplaceFeeBps: number;
+  stakingFeeBps: number;
+  referralFeeBps: number;
+  burnFeeBps: number;
 };
 
 export type UpdateConfigInstructionDataArgs = {
@@ -103,6 +106,9 @@ export type UpdateConfigInstructionDataArgs = {
   maxYears: number;
   solTreasury: Address;
   marketplaceFeeBps: number;
+  stakingFeeBps: number;
+  referralFeeBps: number;
+  burnFeeBps: number;
 };
 
 export function getUpdateConfigInstructionDataEncoder(): FixedSizeEncoder<UpdateConfigInstructionDataArgs> {
@@ -120,6 +126,9 @@ export function getUpdateConfigInstructionDataEncoder(): FixedSizeEncoder<Update
       ["maxYears", getU16Encoder()],
       ["solTreasury", getAddressEncoder()],
       ["marketplaceFeeBps", getU16Encoder()],
+      ["stakingFeeBps", getU16Encoder()],
+      ["referralFeeBps", getU16Encoder()],
+      ["burnFeeBps", getU16Encoder()],
     ]),
     (value) => ({ ...value, discriminator: UPDATE_CONFIG_DISCRIMINATOR }),
   );
@@ -139,6 +148,9 @@ export function getUpdateConfigInstructionDataDecoder(): FixedSizeDecoder<Update
     ["maxYears", getU16Decoder()],
     ["solTreasury", getAddressDecoder()],
     ["marketplaceFeeBps", getU16Decoder()],
+    ["stakingFeeBps", getU16Decoder()],
+    ["referralFeeBps", getU16Decoder()],
+    ["burnFeeBps", getU16Decoder()],
   ]);
 }
 
@@ -169,6 +181,9 @@ export type UpdateConfigAsyncInput<
   maxYears: UpdateConfigInstructionDataArgs["maxYears"];
   solTreasury: UpdateConfigInstructionDataArgs["solTreasury"];
   marketplaceFeeBps: UpdateConfigInstructionDataArgs["marketplaceFeeBps"];
+  stakingFeeBps: UpdateConfigInstructionDataArgs["stakingFeeBps"];
+  referralFeeBps: UpdateConfigInstructionDataArgs["referralFeeBps"];
+  burnFeeBps: UpdateConfigInstructionDataArgs["burnFeeBps"];
 };
 
 export async function getUpdateConfigInstructionAsync<
@@ -232,6 +247,9 @@ export type UpdateConfigInput<
   maxYears: UpdateConfigInstructionDataArgs["maxYears"];
   solTreasury: UpdateConfigInstructionDataArgs["solTreasury"];
   marketplaceFeeBps: UpdateConfigInstructionDataArgs["marketplaceFeeBps"];
+  stakingFeeBps: UpdateConfigInstructionDataArgs["stakingFeeBps"];
+  referralFeeBps: UpdateConfigInstructionDataArgs["referralFeeBps"];
+  burnFeeBps: UpdateConfigInstructionDataArgs["burnFeeBps"];
 };
 
 export function getUpdateConfigInstruction<

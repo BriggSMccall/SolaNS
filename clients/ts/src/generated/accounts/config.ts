@@ -76,6 +76,14 @@ export type Config = {
   solTreasury: Address;
   /** Marketplace fee in basis points (e.g. 200 = 2%), capped at `MAX_FEE_BPS`. */
   marketplaceFeeBps: number;
+  /** Token account (payment mint) accumulating the `$SOLANS` stakers' fee share. */
+  stakingVault: Address;
+  /** Token account (payment mint) accumulating the burn (buyback) fee share. */
+  burnVault: Address;
+  /** Protocol fee-split (§8.2) in basis points. Treasury gets the remainder. */
+  stakingFeeBps: number;
+  referralFeeBps: number;
+  burnFeeBps: number;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -104,6 +112,14 @@ export type ConfigArgs = {
   solTreasury: Address;
   /** Marketplace fee in basis points (e.g. 200 = 2%), capped at `MAX_FEE_BPS`. */
   marketplaceFeeBps: number;
+  /** Token account (payment mint) accumulating the `$SOLANS` stakers' fee share. */
+  stakingVault: Address;
+  /** Token account (payment mint) accumulating the burn (buyback) fee share. */
+  burnVault: Address;
+  /** Protocol fee-split (§8.2) in basis points. Treasury gets the remainder. */
+  stakingFeeBps: number;
+  referralFeeBps: number;
+  burnFeeBps: number;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -127,6 +143,11 @@ export function getConfigEncoder(): FixedSizeEncoder<ConfigArgs> {
       ["maxYears", getU16Encoder()],
       ["solTreasury", getAddressEncoder()],
       ["marketplaceFeeBps", getU16Encoder()],
+      ["stakingVault", getAddressEncoder()],
+      ["burnVault", getAddressEncoder()],
+      ["stakingFeeBps", getU16Encoder()],
+      ["referralFeeBps", getU16Encoder()],
+      ["burnFeeBps", getU16Encoder()],
       ["bump", getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: CONFIG_DISCRIMINATOR }),
@@ -151,6 +172,11 @@ export function getConfigDecoder(): FixedSizeDecoder<Config> {
     ["maxYears", getU16Decoder()],
     ["solTreasury", getAddressDecoder()],
     ["marketplaceFeeBps", getU16Decoder()],
+    ["stakingVault", getAddressDecoder()],
+    ["burnVault", getAddressDecoder()],
+    ["stakingFeeBps", getU16Decoder()],
+    ["referralFeeBps", getU16Decoder()],
+    ["burnFeeBps", getU16Decoder()],
     ["bump", getU8Decoder()],
   ]);
 }
@@ -214,5 +240,5 @@ export async function fetchAllMaybeConfig(
 }
 
 export function getConfigSize(): number {
-  return 199;
+  return 269;
 }

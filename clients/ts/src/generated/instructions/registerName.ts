@@ -66,6 +66,9 @@ export type RegisterNameInstruction<
   TAccountNameRecord extends string | AccountMeta<string> = string,
   TAccountPayerTokenAccount extends string | AccountMeta<string> = string,
   TAccountTreasuryTokenAccount extends string | AccountMeta<string> = string,
+  TAccountStakingVault extends string | AccountMeta<string> = string,
+  TAccountBurnVault extends string | AccountMeta<string> = string,
+  TAccountReferralTokenAccount extends string | AccountMeta<string> = string,
   TAccountPaymentMint extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends string | AccountMeta<string> =
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
@@ -95,6 +98,15 @@ export type RegisterNameInstruction<
       TAccountTreasuryTokenAccount extends string
         ? WritableAccount<TAccountTreasuryTokenAccount>
         : TAccountTreasuryTokenAccount,
+      TAccountStakingVault extends string
+        ? WritableAccount<TAccountStakingVault>
+        : TAccountStakingVault,
+      TAccountBurnVault extends string
+        ? WritableAccount<TAccountBurnVault>
+        : TAccountBurnVault,
+      TAccountReferralTokenAccount extends string
+        ? WritableAccount<TAccountReferralTokenAccount>
+        : TAccountReferralTokenAccount,
       TAccountPaymentMint extends string
         ? ReadonlyAccount<TAccountPaymentMint>
         : TAccountPaymentMint,
@@ -163,6 +175,9 @@ export type RegisterNameAsyncInput<
   TAccountNameRecord extends string = string,
   TAccountPayerTokenAccount extends string = string,
   TAccountTreasuryTokenAccount extends string = string,
+  TAccountStakingVault extends string = string,
+  TAccountBurnVault extends string = string,
+  TAccountReferralTokenAccount extends string = string,
   TAccountPaymentMint extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
@@ -173,6 +188,10 @@ export type RegisterNameAsyncInput<
   nameRecord?: Address<TAccountNameRecord>;
   payerTokenAccount: Address<TAccountPayerTokenAccount>;
   treasuryTokenAccount: Address<TAccountTreasuryTokenAccount>;
+  stakingVault: Address<TAccountStakingVault>;
+  burnVault: Address<TAccountBurnVault>;
+  /** Optional referrer (gets the §8.2 referral share); omit to fold it into treasury. */
+  referralTokenAccount?: Address<TAccountReferralTokenAccount>;
   paymentMint: Address<TAccountPaymentMint>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
@@ -189,6 +208,9 @@ export async function getRegisterNameInstructionAsync<
   TAccountNameRecord extends string,
   TAccountPayerTokenAccount extends string,
   TAccountTreasuryTokenAccount extends string,
+  TAccountStakingVault extends string,
+  TAccountBurnVault extends string,
+  TAccountReferralTokenAccount extends string,
   TAccountPaymentMint extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
@@ -201,6 +223,9 @@ export async function getRegisterNameInstructionAsync<
     TAccountNameRecord,
     TAccountPayerTokenAccount,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
+    TAccountReferralTokenAccount,
     TAccountPaymentMint,
     TAccountTokenProgram,
     TAccountSystemProgram
@@ -215,6 +240,9 @@ export async function getRegisterNameInstructionAsync<
     TAccountNameRecord,
     TAccountPayerTokenAccount,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
+    TAccountReferralTokenAccount,
     TAccountPaymentMint,
     TAccountTokenProgram,
     TAccountSystemProgram
@@ -235,6 +263,12 @@ export async function getRegisterNameInstructionAsync<
     },
     treasuryTokenAccount: {
       value: input.treasuryTokenAccount ?? null,
+      isWritable: true,
+    },
+    stakingVault: { value: input.stakingVault ?? null, isWritable: true },
+    burnVault: { value: input.burnVault ?? null, isWritable: true },
+    referralTokenAccount: {
+      value: input.referralTokenAccount ?? null,
       isWritable: true,
     },
     paymentMint: { value: input.paymentMint ?? null, isWritable: false },
@@ -276,6 +310,9 @@ export async function getRegisterNameInstructionAsync<
       getAccountMeta("nameRecord", accounts.nameRecord),
       getAccountMeta("payerTokenAccount", accounts.payerTokenAccount),
       getAccountMeta("treasuryTokenAccount", accounts.treasuryTokenAccount),
+      getAccountMeta("stakingVault", accounts.stakingVault),
+      getAccountMeta("burnVault", accounts.burnVault),
+      getAccountMeta("referralTokenAccount", accounts.referralTokenAccount),
       getAccountMeta("paymentMint", accounts.paymentMint),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
       getAccountMeta("systemProgram", accounts.systemProgram),
@@ -292,6 +329,9 @@ export async function getRegisterNameInstructionAsync<
     TAccountNameRecord,
     TAccountPayerTokenAccount,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
+    TAccountReferralTokenAccount,
     TAccountPaymentMint,
     TAccountTokenProgram,
     TAccountSystemProgram
@@ -305,6 +345,9 @@ export type RegisterNameInput<
   TAccountNameRecord extends string = string,
   TAccountPayerTokenAccount extends string = string,
   TAccountTreasuryTokenAccount extends string = string,
+  TAccountStakingVault extends string = string,
+  TAccountBurnVault extends string = string,
+  TAccountReferralTokenAccount extends string = string,
   TAccountPaymentMint extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
@@ -315,6 +358,10 @@ export type RegisterNameInput<
   nameRecord: Address<TAccountNameRecord>;
   payerTokenAccount: Address<TAccountPayerTokenAccount>;
   treasuryTokenAccount: Address<TAccountTreasuryTokenAccount>;
+  stakingVault: Address<TAccountStakingVault>;
+  burnVault: Address<TAccountBurnVault>;
+  /** Optional referrer (gets the §8.2 referral share); omit to fold it into treasury. */
+  referralTokenAccount?: Address<TAccountReferralTokenAccount>;
   paymentMint: Address<TAccountPaymentMint>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
@@ -331,6 +378,9 @@ export function getRegisterNameInstruction<
   TAccountNameRecord extends string,
   TAccountPayerTokenAccount extends string,
   TAccountTreasuryTokenAccount extends string,
+  TAccountStakingVault extends string,
+  TAccountBurnVault extends string,
+  TAccountReferralTokenAccount extends string,
   TAccountPaymentMint extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
@@ -343,6 +393,9 @@ export function getRegisterNameInstruction<
     TAccountNameRecord,
     TAccountPayerTokenAccount,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
+    TAccountReferralTokenAccount,
     TAccountPaymentMint,
     TAccountTokenProgram,
     TAccountSystemProgram
@@ -356,6 +409,9 @@ export function getRegisterNameInstruction<
   TAccountNameRecord,
   TAccountPayerTokenAccount,
   TAccountTreasuryTokenAccount,
+  TAccountStakingVault,
+  TAccountBurnVault,
+  TAccountReferralTokenAccount,
   TAccountPaymentMint,
   TAccountTokenProgram,
   TAccountSystemProgram
@@ -375,6 +431,12 @@ export function getRegisterNameInstruction<
     },
     treasuryTokenAccount: {
       value: input.treasuryTokenAccount ?? null,
+      isWritable: true,
+    },
+    stakingVault: { value: input.stakingVault ?? null, isWritable: true },
+    burnVault: { value: input.burnVault ?? null, isWritable: true },
+    referralTokenAccount: {
+      value: input.referralTokenAccount ?? null,
       isWritable: true,
     },
     paymentMint: { value: input.paymentMint ?? null, isWritable: false },
@@ -408,6 +470,9 @@ export function getRegisterNameInstruction<
       getAccountMeta("nameRecord", accounts.nameRecord),
       getAccountMeta("payerTokenAccount", accounts.payerTokenAccount),
       getAccountMeta("treasuryTokenAccount", accounts.treasuryTokenAccount),
+      getAccountMeta("stakingVault", accounts.stakingVault),
+      getAccountMeta("burnVault", accounts.burnVault),
+      getAccountMeta("referralTokenAccount", accounts.referralTokenAccount),
       getAccountMeta("paymentMint", accounts.paymentMint),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
       getAccountMeta("systemProgram", accounts.systemProgram),
@@ -424,6 +489,9 @@ export function getRegisterNameInstruction<
     TAccountNameRecord,
     TAccountPayerTokenAccount,
     TAccountTreasuryTokenAccount,
+    TAccountStakingVault,
+    TAccountBurnVault,
+    TAccountReferralTokenAccount,
     TAccountPaymentMint,
     TAccountTokenProgram,
     TAccountSystemProgram
@@ -442,9 +510,13 @@ export type ParsedRegisterNameInstruction<
     nameRecord: TAccountMetas[3];
     payerTokenAccount: TAccountMetas[4];
     treasuryTokenAccount: TAccountMetas[5];
-    paymentMint: TAccountMetas[6];
-    tokenProgram: TAccountMetas[7];
-    systemProgram: TAccountMetas[8];
+    stakingVault: TAccountMetas[6];
+    burnVault: TAccountMetas[7];
+    /** Optional referrer (gets the §8.2 referral share); omit to fold it into treasury. */
+    referralTokenAccount?: TAccountMetas[8] | undefined;
+    paymentMint: TAccountMetas[9];
+    tokenProgram: TAccountMetas[10];
+    systemProgram: TAccountMetas[11];
   };
   data: RegisterNameInstructionData;
 };
@@ -457,12 +529,12 @@ export function parseRegisterNameInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedRegisterNameInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 9) {
+  if (instruction.accounts.length < 12) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 9,
+        expectedAccountMetas: 12,
       },
     );
   }
@@ -471,6 +543,12 @@ export function parseRegisterNameInstruction<
     const accountMeta = (instruction.accounts as TAccountMetas)[accountIndex]!;
     accountIndex += 1;
     return accountMeta;
+  };
+  const getNextOptionalAccount = () => {
+    const accountMeta = getNextAccount();
+    return accountMeta.address === SOLANS_PROGRAM_ADDRESS
+      ? undefined
+      : accountMeta;
   };
   return {
     programAddress: instruction.programAddress,
@@ -481,6 +559,9 @@ export function parseRegisterNameInstruction<
       nameRecord: getNextAccount(),
       payerTokenAccount: getNextAccount(),
       treasuryTokenAccount: getNextAccount(),
+      stakingVault: getNextAccount(),
+      burnVault: getNextAccount(),
+      referralTokenAccount: getNextOptionalAccount(),
       paymentMint: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),

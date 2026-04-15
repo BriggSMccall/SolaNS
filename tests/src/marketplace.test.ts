@@ -167,14 +167,18 @@ describe("marketplace (list / update / cancel / buy)", () => {
   });
 
   it("charges the numeric premium for a ≤4-digit number, not for 5+ digits", async () => {
-    const before0 = readTokenAmount(env.svm, env.treasury)!;
+    // The fee is split across vaults (§8.2), so total it (no referrer).
+    const totalFee = () =>
+      readTokenAmount(env.svm, env.treasury)! +
+      readTokenAmount(env.svm, env.stakingVault)! +
+      readTokenAmount(env.svm, env.burnVault)!;
+    const t0 = totalFee();
     await registerName(env, "12"); // numeric, 2 digits -> price_numeric (500M)
-    const after1 = readTokenAmount(env.svm, env.treasury)!;
-    expect(after1 - before0).toBe(500_000_000n);
+    const t1 = totalFee();
+    expect(t1 - t0).toBe(500_000_000n);
 
     await registerName(env, "12345"); // numeric but 5 digits -> price_5plus (1M)
-    const after2 = readTokenAmount(env.svm, env.treasury)!;
-    expect(after2 - after1).toBe(1_000_000n);
+    expect(totalFee() - t1).toBe(1_000_000n);
   });
 });
 

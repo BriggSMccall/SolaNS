@@ -66,4 +66,6 @@ pub enum SolansError {
     OfferExpired,
     #[msg("Signer cannot cancel this offer")]
     NotOfferer,
+    #[msg("Fee-split basis points must sum to less than 10000")]
+    InvalidFeeSplit,
 }

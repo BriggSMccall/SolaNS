@@ -32,10 +32,18 @@ pub fn handler(
     max_years: u16,
     sol_treasury: Pubkey,
     marketplace_fee_bps: u16,
+    staking_fee_bps: u16,
+    referral_fee_bps: u16,
+    burn_fee_bps: u16,
 ) -> Result<()> {
     require!(min_years >= 1 && min_years <= max_years, SolansError::InvalidYears);
     require!(grace_period_seconds >= 0, SolansError::InvalidYears);
     require!(marketplace_fee_bps <= MAX_FEE_BPS, SolansError::InvalidFeeBps);
+    require!(
+        (staking_fee_bps as u32 + referral_fee_bps as u32 + burn_fee_bps as u32)
+            < BPS_DENOMINATOR as u32,
+        SolansError::InvalidFeeSplit
+    );
 
     let config = &mut ctx.accounts.config;
     config.price_1 = price_1;
@@ -49,5 +57,8 @@ pub fn handler(
     config.max_years = max_years;
     config.sol_treasury = sol_treasury;
     config.marketplace_fee_bps = marketplace_fee_bps;
+    config.staking_fee_bps = staking_fee_bps;
+    config.referral_fee_bps = referral_fee_bps;
+    config.burn_fee_bps = burn_fee_bps;
     Ok(())
 }

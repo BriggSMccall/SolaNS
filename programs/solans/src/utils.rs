@@ -1,6 +1,6 @@
 use crate::constants::*;
 use crate::error::SolansError;
-use crate::state::NameRecord;
+use crate::state::{Config, NameRecord};
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked};
 use solana_sha256_hasher::hashv;
@@ -116,10 +116,10 @@ pub fn years_to_secs(years: u16) -> Result<i64> {
         .ok_or_else(|| error!(SolansError::MathOverflow))
 }
 
-/// Charge a registration/renewal fee: a Token-2022-safe `transfer_checked` CPI
-/// from `from` (the payer's token account) to `to` (the treasury). Works for
-/// both SPL Token and Token-2022 mints via the token interface.
-pub fn charge_fee<'info>(
+/// A single Token-2022-safe `transfer_checked` of `amount` from `from` to `to`
+/// (no-op when `amount == 0`). Works for SPL Token and Token-2022 via the
+/// token interface. `CpiContext::new` takes the program id (Pubkey) in 1.0.2.
+fn transfer_share<'info>(
     token_program: &Interface<'info, TokenInterface>,
     from: &InterfaceAccount<'info, TokenAccount>,
     to: &InterfaceAccount<'info, TokenAccount>,
@@ -127,13 +127,55 @@ pub fn charge_fee<'info>(
     authority: &Signer<'info>,
     amount: u64,
 ) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
     let cpi_accounts = TransferChecked {
         from: from.to_account_info(),
         mint: mint.to_account_info(),
         to: to.to_account_info(),
         authority: authority.to_account_info(),
     };
-    let cpi_ctx = CpiContext::new(token_program.key(), cpi_accounts);
-    token_interface::transfer_checked(cpi_ctx, amount, mint.decimals)?;
+    token_interface::transfer_checked(
+        CpiContext::new(token_program.key(), cpi_accounts),
+        amount,
+        mint.decimals,
+    )?;
+    Ok(())
+}
+
+/// Charge `amount` from the payer and distribute it per the §8.2 fee split:
+/// treasury / `$SOLANS` stakers / referral / burn (all in the payment mint). The
+/// referral share folds into treasury when no `referral` account is given. One
+/// signed payment fanned out into up to four `transfer_checked` CPIs.
+#[allow(clippy::too_many_arguments)]
+pub fn distribute_fee<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    payer_token_account: &InterfaceAccount<'info, TokenAccount>,
+    treasury: &InterfaceAccount<'info, TokenAccount>,
+    staking_vault: &InterfaceAccount<'info, TokenAccount>,
+    burn_vault: &InterfaceAccount<'info, TokenAccount>,
+    referral: Option<&InterfaceAccount<'info, TokenAccount>>,
+    mint: &InterfaceAccount<'info, Mint>,
+    authority: &Signer<'info>,
+    amount: u64,
+    config: &Config,
+) -> Result<()> {
+    let (mut treasury_share, staking_share, referral_share, burn_share) = config.fee_split(amount);
+
+    transfer_share(token_program, payer_token_account, staking_vault, mint, authority, staking_share)?;
+    transfer_share(token_program, payer_token_account, burn_vault, mint, authority, burn_share)?;
+    match referral {
+        Some(r) => {
+            transfer_share(token_program, payer_token_account, r, mint, authority, referral_share)?
+        }
+        // No referrer: the referral share goes to the treasury.
+        None => {
+            treasury_share = treasury_share
+                .checked_add(referral_share)
+                .ok_or_else(|| error!(SolansError::MathOverflow))?
+        }
+    }
+    transfer_share(token_program, payer_token_account, treasury, mint, authority, treasury_share)?;
     Ok(())
 }

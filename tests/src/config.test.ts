@@ -14,6 +14,11 @@ describe("init_config / update_config", () => {
     expect(cfg.solTreasury).toBe(env.solTreasury);
     expect(cfg.marketplaceFeeBps).toBe(200);
     expect(cfg.priceNumeric).toBe(500_000_000n);
+    expect(cfg.stakingVault).toBe(env.stakingVault);
+    expect(cfg.burnVault).toBe(env.burnVault);
+    expect(cfg.stakingFeeBps).toBe(2500);
+    expect(cfg.referralFeeBps).toBe(1000);
+    expect(cfg.burnFeeBps).toBe(500);
   });
 
   it("lets the admin update params, but rejects a non-admin (NotAdmin)", async () => {
@@ -35,6 +40,9 @@ describe("init_config / update_config", () => {
         maxYears: 5,
         solTreasury: before.solTreasury,
         marketplaceFeeBps: 300,
+        stakingFeeBps: 3000,
+        referralFeeBps: before.referralFeeBps,
+        burnFeeBps: before.burnFeeBps,
       }),
     ]);
     const after = readConfig(env.svm, cfgPda)!;
@@ -42,6 +50,7 @@ describe("init_config / update_config", () => {
     expect(after.gracePeriodSeconds).toBe(123n);
     expect(after.maxYears).toBe(5);
     expect(after.marketplaceFeeBps).toBe(300);
+    expect(after.stakingFeeBps).toBe(3000);
 
     const stranger = await fundedSigner(env.svm);
     const res = await sendExpectingFailure(env.svm, stranger, [
@@ -58,6 +67,9 @@ describe("init_config / update_config", () => {
         maxYears: 1,
         solTreasury: stranger.address,
         marketplaceFeeBps: 1,
+        stakingFeeBps: 1,
+        referralFeeBps: 1,
+        burnFeeBps: 1,
       }),
     ]);
     expect(logsOf(res)).toContain("NotAdmin");

@@ -28,6 +28,14 @@ pub struct InitConfig<'info> {
     )]
     pub treasury_token_account: InterfaceAccount<'info, TokenAccount>,
 
+    /// Vault accumulating the `$SOLANS` stakers' fee share (§8.2).
+    #[account(token::mint = payment_mint, token::token_program = token_program)]
+    pub staking_vault: InterfaceAccount<'info, TokenAccount>,
+
+    /// Vault accumulating the burn (buyback) fee share (§8.2).
+    #[account(token::mint = payment_mint, token::token_program = token_program)]
+    pub burn_vault: InterfaceAccount<'info, TokenAccount>,
+
     pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }
@@ -46,6 +54,9 @@ pub fn handler(
     max_years: u16,
     sol_treasury: Pubkey,
     marketplace_fee_bps: u16,
+    staking_fee_bps: u16,
+    referral_fee_bps: u16,
+    burn_fee_bps: u16,
 ) -> Result<()> {
     require!(
         min_years >= 1 && min_years <= max_years,
@@ -55,6 +66,12 @@ pub fn handler(
     require!(
         marketplace_fee_bps <= MAX_FEE_BPS,
         SolansError::InvalidFeeBps
+    );
+    // Treasury takes the remainder, so the non-treasury shares must leave room.
+    require!(
+        (staking_fee_bps as u32 + referral_fee_bps as u32 + burn_fee_bps as u32)
+            < BPS_DENOMINATOR as u32,
+        SolansError::InvalidFeeSplit
     );
 
     let config = &mut ctx.accounts.config;
@@ -72,6 +89,11 @@ pub fn handler(
     config.max_years = max_years;
     config.sol_treasury = sol_treasury;
     config.marketplace_fee_bps = marketplace_fee_bps;
+    config.staking_vault = ctx.accounts.staking_vault.key();
+    config.burn_vault = ctx.accounts.burn_vault.key();
+    config.staking_fee_bps = staking_fee_bps;
+    config.referral_fee_bps = referral_fee_bps;
+    config.burn_fee_bps = burn_fee_bps;
     config.bump = ctx.bumps.config;
     Ok(())
 }

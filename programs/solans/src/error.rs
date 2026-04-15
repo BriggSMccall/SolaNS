@@ -68,4 +68,8 @@ pub enum SolansError {
     NotOfferer,
     #[msg("Fee-split basis points must sum to less than 10000")]
     InvalidFeeSplit,
+    #[msg("Insufficient staked balance")]
+    InsufficientStake,
+    #[msg("Token account mint does not match the staking pool")]
+    StakeMintMismatch,
 }

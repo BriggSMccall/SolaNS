@@ -11,3 +11,5 @@ export * from "./listing";
 export * from "./nameRecord";
 export * from "./offer";
 export * from "./reverseRecord";
+export * from "./stakeAccount";
+export * from "./stakePool";

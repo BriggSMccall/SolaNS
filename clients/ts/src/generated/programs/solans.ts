@@ -40,6 +40,8 @@ import {
   getNameRecordCodec,
   getOfferCodec,
   getReverseRecordCodec,
+  getStakeAccountCodec,
+  getStakePoolCodec,
   type Config,
   type ConfigArgs,
   type Listing,
@@ -50,6 +52,10 @@ import {
   type OfferArgs,
   type ReverseRecord,
   type ReverseRecordArgs,
+  type StakeAccount,
+  type StakeAccountArgs,
+  type StakePool,
+  type StakePoolArgs,
 } from "../accounts";
 import {
   getAcceptOfferInstructionAsync,
@@ -58,7 +64,9 @@ import {
   getCancelListingInstruction,
   getCancelOfferInstruction,
   getClaimExpiredInstructionAsync,
+  getClaimRewardsInstructionAsync,
   getInitConfigInstructionAsync,
+  getInitStakePoolInstructionAsync,
   getListNameInstruction,
   getLockTransferInstruction,
   getMakeOfferInstruction,
@@ -70,8 +78,10 @@ import {
   getSetHostingInstruction,
   getSetResolverInstruction,
   getSetReverseInstructionAsync,
+  getStakeInstructionAsync,
   getTokenizeNameInstructionAsync,
   getTransferNameInstruction,
+  getUnstakeInstructionAsync,
   getUpdateConfigInstructionAsync,
   getUpdateListingInstruction,
   getUpdateRecordInstruction,
@@ -82,7 +92,9 @@ import {
   parseCancelListingInstruction,
   parseCancelOfferInstruction,
   parseClaimExpiredInstruction,
+  parseClaimRewardsInstruction,
   parseInitConfigInstruction,
+  parseInitStakePoolInstruction,
   parseListNameInstruction,
   parseLockTransferInstruction,
   parseMakeOfferInstruction,
@@ -94,8 +106,10 @@ import {
   parseSetHostingInstruction,
   parseSetResolverInstruction,
   parseSetReverseInstruction,
+  parseStakeInstruction,
   parseTokenizeNameInstruction,
   parseTransferNameInstruction,
+  parseUnstakeInstruction,
   parseUpdateConfigInstruction,
   parseUpdateListingInstruction,
   parseUpdateRecordInstruction,
@@ -106,7 +120,9 @@ import {
   type CancelListingInput,
   type CancelOfferInput,
   type ClaimExpiredAsyncInput,
+  type ClaimRewardsAsyncInput,
   type InitConfigAsyncInput,
+  type InitStakePoolAsyncInput,
   type ListNameInput,
   type LockTransferInput,
   type MakeOfferInput,
@@ -116,7 +132,9 @@ import {
   type ParsedCancelListingInstruction,
   type ParsedCancelOfferInstruction,
   type ParsedClaimExpiredInstruction,
+  type ParsedClaimRewardsInstruction,
   type ParsedInitConfigInstruction,
+  type ParsedInitStakePoolInstruction,
   type ParsedListNameInstruction,
   type ParsedLockTransferInstruction,
   type ParsedMakeOfferInstruction,
@@ -128,8 +146,10 @@ import {
   type ParsedSetHostingInstruction,
   type ParsedSetResolverInstruction,
   type ParsedSetReverseInstruction,
+  type ParsedStakeInstruction,
   type ParsedTokenizeNameInstruction,
   type ParsedTransferNameInstruction,
+  type ParsedUnstakeInstruction,
   type ParsedUpdateConfigInstruction,
   type ParsedUpdateListingInstruction,
   type ParsedUpdateRecordInstruction,
@@ -142,8 +162,10 @@ import {
   type SetHostingInput,
   type SetResolverInput,
   type SetReverseAsyncInput,
+  type StakeAsyncInput,
   type TokenizeNameAsyncInput,
   type TransferNameInput,
+  type UnstakeAsyncInput,
   type UpdateConfigAsyncInput,
   type UpdateListingInput,
   type UpdateRecordInput,
@@ -155,6 +177,8 @@ import {
   findMetadataPda,
   findNameRecordPda,
   findReverseRecordPda,
+  findStakeAccountPda,
+  findStakePoolPda,
 } from "../pdas";
 
 export const SOLANS_PROGRAM_ADDRESS =
@@ -166,6 +190,8 @@ export enum SolansAccount {
   NameRecord,
   Offer,
   ReverseRecord,
+  StakeAccount,
+  StakePool,
 }
 
 export function identifySolansAccount(
@@ -227,6 +253,28 @@ export function identifySolansAccount(
   ) {
     return SolansAccount.ReverseRecord;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([80, 158, 67, 124, 50, 189, 192, 255]),
+      ),
+      0,
+    )
+  ) {
+    return SolansAccount.StakeAccount;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([121, 34, 206, 21, 79, 127, 255, 28]),
+      ),
+      0,
+    )
+  ) {
+    return SolansAccount.StakePool;
+  }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
     { accountData: data, programName: "solans" },
@@ -240,7 +288,9 @@ export enum SolansInstruction {
   CancelListing,
   CancelOffer,
   ClaimExpired,
+  ClaimRewards,
   InitConfig,
+  InitStakePool,
   ListName,
   LockTransfer,
   MakeOffer,
@@ -252,8 +302,10 @@ export enum SolansInstruction {
   SetHosting,
   SetResolver,
   SetReverse,
+  Stake,
   TokenizeName,
   TransferName,
+  Unstake,
   UpdateConfig,
   UpdateListing,
   UpdateRecord,
@@ -334,12 +386,34 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([4, 144, 132, 71, 116, 23, 151, 80]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.ClaimRewards;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([23, 235, 115, 232, 168, 96, 1, 231]),
       ),
       0,
     )
   ) {
     return SolansInstruction.InitConfig;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([145, 69, 167, 211, 154, 130, 73, 50]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.InitStakePool;
   }
   if (
     containsBytes(
@@ -466,6 +540,17 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([206, 176, 202, 18, 200, 209, 179, 108]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.Stake;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([161, 164, 31, 49, 167, 4, 117, 23]),
       ),
       0,
@@ -483,6 +568,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.TransferName;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([90, 95, 107, 42, 205, 124, 50, 225]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.Unstake;
   }
   if (
     containsBytes(
@@ -556,8 +652,14 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.ClaimExpired;
     } & ParsedClaimExpiredInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.ClaimRewards;
+    } & ParsedClaimRewardsInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.InitConfig;
     } & ParsedInitConfigInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.InitStakePool;
+    } & ParsedInitStakePoolInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.ListName;
     } & ParsedListNameInstruction<TProgram>)
@@ -592,11 +694,17 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.SetReverse;
     } & ParsedSetReverseInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.Stake;
+    } & ParsedStakeInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.TokenizeName;
     } & ParsedTokenizeNameInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.TransferName;
     } & ParsedTransferNameInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.Unstake;
+    } & ParsedUnstakeInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.UpdateConfig;
     } & ParsedUpdateConfigInstruction<TProgram>)
@@ -657,11 +765,25 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseClaimExpiredInstruction(instruction),
       };
     }
+    case SolansInstruction.ClaimRewards: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.ClaimRewards,
+        ...parseClaimRewardsInstruction(instruction),
+      };
+    }
     case SolansInstruction.InitConfig: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: SolansInstruction.InitConfig,
         ...parseInitConfigInstruction(instruction),
+      };
+    }
+    case SolansInstruction.InitStakePool: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.InitStakePool,
+        ...parseInitStakePoolInstruction(instruction),
       };
     }
     case SolansInstruction.ListName: {
@@ -741,6 +863,13 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseSetReverseInstruction(instruction),
       };
     }
+    case SolansInstruction.Stake: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.Stake,
+        ...parseStakeInstruction(instruction),
+      };
+    }
     case SolansInstruction.TokenizeName: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -753,6 +882,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.TransferName,
         ...parseTransferNameInstruction(instruction),
+      };
+    }
+    case SolansInstruction.Unstake: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.Unstake,
+        ...parseUnstakeInstruction(instruction),
       };
     }
     case SolansInstruction.UpdateConfig: {
@@ -811,6 +947,10 @@ export type SolansPluginAccounts = {
     SelfFetchFunctions<OfferArgs, Offer>;
   reverseRecord: ReturnType<typeof getReverseRecordCodec> &
     SelfFetchFunctions<ReverseRecordArgs, ReverseRecord>;
+  stakeAccount: ReturnType<typeof getStakeAccountCodec> &
+    SelfFetchFunctions<StakeAccountArgs, StakeAccount>;
+  stakePool: ReturnType<typeof getStakePoolCodec> &
+    SelfFetchFunctions<StakePoolArgs, StakePool>;
 };
 
 export type SolansPluginInstructions = {
@@ -835,9 +975,17 @@ export type SolansPluginInstructions = {
     input: ClaimExpiredAsyncInput,
   ) => ReturnType<typeof getClaimExpiredInstructionAsync> &
     SelfPlanAndSendFunctions;
+  claimRewards: (
+    input: ClaimRewardsAsyncInput,
+  ) => ReturnType<typeof getClaimRewardsInstructionAsync> &
+    SelfPlanAndSendFunctions;
   initConfig: (
     input: InitConfigAsyncInput,
   ) => ReturnType<typeof getInitConfigInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  initStakePool: (
+    input: InitStakePoolAsyncInput,
+  ) => ReturnType<typeof getInitStakePoolInstructionAsync> &
     SelfPlanAndSendFunctions;
   listName: (
     input: ListNameInput,
@@ -878,6 +1026,9 @@ export type SolansPluginInstructions = {
     input: SetReverseAsyncInput,
   ) => ReturnType<typeof getSetReverseInstructionAsync> &
     SelfPlanAndSendFunctions;
+  stake: (
+    input: StakeAsyncInput,
+  ) => ReturnType<typeof getStakeInstructionAsync> & SelfPlanAndSendFunctions;
   tokenizeName: (
     input: TokenizeNameAsyncInput,
   ) => ReturnType<typeof getTokenizeNameInstructionAsync> &
@@ -885,6 +1036,9 @@ export type SolansPluginInstructions = {
   transferName: (
     input: TransferNameInput,
   ) => ReturnType<typeof getTransferNameInstruction> & SelfPlanAndSendFunctions;
+  unstake: (
+    input: UnstakeAsyncInput,
+  ) => ReturnType<typeof getUnstakeInstructionAsync> & SelfPlanAndSendFunctions;
   updateConfig: (
     input: UpdateConfigAsyncInput,
   ) => ReturnType<typeof getUpdateConfigInstructionAsync> &
@@ -904,6 +1058,8 @@ export type SolansPluginInstructions = {
 
 export type SolansPluginPdas = {
   config: typeof findConfigPda;
+  stakePool: typeof findStakePoolPda;
+  stakeAccount: typeof findStakeAccountPda;
   metadata: typeof findMetadataPda;
   masterEdition: typeof findMasterEditionPda;
   nameRecord: typeof findNameRecordPda;
@@ -929,6 +1085,8 @@ export function solansProgram() {
           nameRecord: addSelfFetchFunctions(client, getNameRecordCodec()),
           offer: addSelfFetchFunctions(client, getOfferCodec()),
           reverseRecord: addSelfFetchFunctions(client, getReverseRecordCodec()),
+          stakeAccount: addSelfFetchFunctions(client, getStakeAccountCodec()),
+          stakePool: addSelfFetchFunctions(client, getStakePoolCodec()),
         },
         instructions: {
           acceptOffer: (input) =>
@@ -958,10 +1116,20 @@ export function solansProgram() {
               client,
               getClaimExpiredInstructionAsync(input),
             ),
+          claimRewards: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getClaimRewardsInstructionAsync(input),
+            ),
           initConfig: (input) =>
             addSelfPlanAndSendFunctions(
               client,
               getInitConfigInstructionAsync(input),
+            ),
+          initStakePool: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getInitStakePoolInstructionAsync(input),
             ),
           listName: (input) =>
             addSelfPlanAndSendFunctions(client, getListNameInstruction(input)),
@@ -1018,6 +1186,11 @@ export function solansProgram() {
               client,
               getSetReverseInstructionAsync(input),
             ),
+          stake: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getStakeInstructionAsync(input),
+            ),
           tokenizeName: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -1027,6 +1200,11 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getTransferNameInstruction(input),
+            ),
+          unstake: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getUnstakeInstructionAsync(input),
             ),
           updateConfig: (input) =>
             addSelfPlanAndSendFunctions(
@@ -1051,6 +1229,8 @@ export function solansProgram() {
         },
         pdas: {
           config: findConfigPda,
+          stakePool: findStakePoolPda,
+          stakeAccount: findStakeAccountPda,
           metadata: findMetadataPda,
           masterEdition: findMasterEditionPda,
           nameRecord: findNameRecordPda,

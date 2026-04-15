@@ -172,6 +172,22 @@ pub mod solans {
         instructions::cancel_offer::handler(ctx)
     }
 
+    pub fn init_stake_pool(ctx: Context<InitStakePool>) -> Result<()> {
+        instructions::init_stake_pool::handler(ctx)
+    }
+
+    pub fn stake(ctx: Context<Stake>, amount: u64) -> Result<()> {
+        instructions::stake::handler(ctx, amount)
+    }
+
+    pub fn unstake(ctx: Context<Unstake>, amount: u64) -> Result<()> {
+        instructions::unstake::handler(ctx, amount)
+    }
+
+    pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
+        instructions::claim_rewards::handler(ctx)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_config(
         ctx: Context<UpdateConfig>,

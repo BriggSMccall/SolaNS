@@ -80,8 +80,13 @@ export const SOLANS_ERROR__OFFER_EXPIRED = 0x178e; // 6030
 export const SOLANS_ERROR__NOT_OFFERER = 0x178f; // 6031
 /** InvalidFeeSplit: Fee-split basis points must sum to less than 10000 */
 export const SOLANS_ERROR__INVALID_FEE_SPLIT = 0x1790; // 6032
+/** InsufficientStake: Insufficient staked balance */
+export const SOLANS_ERROR__INSUFFICIENT_STAKE = 0x1791; // 6033
+/** StakeMintMismatch: Token account mint does not match the staking pool */
+export const SOLANS_ERROR__STAKE_MINT_MISMATCH = 0x1792; // 6034
 
 export type SolansError =
+  | typeof SOLANS_ERROR__INSUFFICIENT_STAKE
   | typeof SOLANS_ERROR__INVALID_FEE_BPS
   | typeof SOLANS_ERROR__INVALID_FEE_SPLIT
   | typeof SOLANS_ERROR__INVALID_MINT
@@ -110,6 +115,7 @@ export type SolansError =
   | typeof SOLANS_ERROR__RECORD_NOT_FOUND
   | typeof SOLANS_ERROR__RECORD_TOO_LONG
   | typeof SOLANS_ERROR__SELF_PURCHASE
+  | typeof SOLANS_ERROR__STAKE_MINT_MISMATCH
   | typeof SOLANS_ERROR__SUBDOMAIN
   | typeof SOLANS_ERROR__TOKENIZED
   | typeof SOLANS_ERROR__TOO_DEEP
@@ -119,6 +125,7 @@ export type SolansError =
 let solansErrorMessages: Record<SolansError, string> | undefined;
 if (process.env["NODE_ENV"] !== "production") {
   solansErrorMessages = {
+    [SOLANS_ERROR__INSUFFICIENT_STAKE]: `Insufficient staked balance`,
     [SOLANS_ERROR__INVALID_FEE_BPS]: `Marketplace fee exceeds the maximum allowed`,
     [SOLANS_ERROR__INVALID_FEE_SPLIT]: `Fee-split basis points must sum to less than 10000`,
     [SOLANS_ERROR__INVALID_MINT]: `Payment mint does not match config`,
@@ -147,6 +154,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__RECORD_NOT_FOUND]: `Record key not found`,
     [SOLANS_ERROR__RECORD_TOO_LONG]: `Record key or value exceeds the maximum length`,
     [SOLANS_ERROR__SELF_PURCHASE]: `Buyer and seller must differ`,
+    [SOLANS_ERROR__STAKE_MINT_MISMATCH]: `Token account mint does not match the staking pool`,
     [SOLANS_ERROR__SUBDOMAIN]: `Operation is not supported for a subdomain`,
     [SOLANS_ERROR__TOKENIZED]: `Name is tokenized as an NFT; redeem it first`,
     [SOLANS_ERROR__TOO_DEEP]: `Subdomain depth exceeds the maximum`,

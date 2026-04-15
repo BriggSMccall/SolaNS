@@ -11,8 +11,12 @@ import {
   getCancelListingInstruction,
   getCancelOfferInstruction,
   getClaimExpiredInstructionAsync,
+  getClaimRewardsInstructionAsync,
   getInitConfigInstructionAsync,
+  getInitStakePoolInstructionAsync,
   getListNameInstruction,
+  getStakeInstructionAsync,
+  getUnstakeInstructionAsync,
   getLockTransferInstruction,
   getMakeOfferInstruction,
   getRedeemNameInstructionAsync,
@@ -545,6 +549,107 @@ program
     const [offer] = await findOffer(name, bidder);
     const ix = getCancelOfferInstruction({ canceller: ctx.signer, buyer: bidder, nameRecord, offer });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+// --- staking ($SOLANS) -----------------------------------------------------
+program
+  .command("stake-init <solansMint>")
+  .description("Create the $SOLANS staking pool (admin); points the staker fee share at it")
+  .action(async (solansMint, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const cfg = await getConfig(ctx);
+    const ix = await getInitStakePoolInstructionAsync({
+      admin: ctx.signer,
+      solansMint: address(solansMint),
+      paymentMint: cfg.data.paymentMint,
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+async function stakePoolAndConfig(ctx: Ctx) {
+  const cfg = await getConfig(ctx);
+  const pool = await SolansClient.fromRpc(ctx.rpc).getStakePool();
+  if (!pool) throw new Error("staking pool not initialized (run stake-init)");
+  return { cfg, pool };
+}
+
+program
+  .command("stake <amount>")
+  .description("Stake $SOLANS to earn the protocol fee share")
+  .action(async (amount, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const { cfg, pool } = await stakePoolAndConfig(ctx);
+    const ix = await getStakeInstructionAsync({
+      staker: ctx.signer,
+      stakerTokenAccount: await ataFor(ctx.signer.address, pool.solansMint),
+      stakerRewardAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
+      stakeVault: pool.stakeVault,
+      rewardVault: pool.rewardVault,
+      solansMint: pool.solansMint,
+      paymentMint: cfg.data.paymentMint,
+      amount: BigInt(amount),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("unstake <amount>")
+  .description("Withdraw staked $SOLANS (pays out pending reward first)")
+  .action(async (amount, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const { cfg, pool } = await stakePoolAndConfig(ctx);
+    const ix = await getUnstakeInstructionAsync({
+      staker: ctx.signer,
+      stakerTokenAccount: await ataFor(ctx.signer.address, pool.solansMint),
+      stakerRewardAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
+      stakeVault: pool.stakeVault,
+      rewardVault: pool.rewardVault,
+      solansMint: pool.solansMint,
+      paymentMint: cfg.data.paymentMint,
+      amount: BigInt(amount),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("stake-claim")
+  .description("Claim pending staking rewards (payment mint)")
+  .action(async (_o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const { cfg, pool } = await stakePoolAndConfig(ctx);
+    const ix = await getClaimRewardsInstructionAsync({
+      staker: ctx.signer,
+      stakerRewardAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
+      rewardVault: pool.rewardVault,
+      paymentMint: cfg.data.paymentMint,
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("stake-info")
+  .description("Show the staking pool + the signer's stake + pending reward")
+  .action(async (_o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const sdk = SolansClient.fromRpc(ctx.rpc);
+    const pool = await sdk.getStakePool();
+    if (!pool) {
+      console.log("staking pool not initialized");
+      return;
+    }
+    const stake = await sdk.getStake(ctx.signer.address);
+    const pending = await sdk.pendingReward(ctx.signer.address);
+    const out = {
+      totalStaked: pool.totalStaked.toString(),
+      myStake: (stake?.amount ?? 0n).toString(),
+      pendingReward: pending.toString(),
+    };
+    if (ctx.opts.json) console.log(JSON.stringify(out, null, 2));
+    else {
+      console.log(`  total staked: ${out.totalStaked}`);
+      console.log(`  my stake:     ${out.myStake}`);
+      console.log(`  pending:      ${out.pendingReward}`);
+    }
   });
 
 // --- reads -----------------------------------------------------------------

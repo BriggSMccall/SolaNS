@@ -116,10 +116,11 @@ pub fn years_to_secs(years: u16) -> Result<i64> {
         .ok_or_else(|| error!(SolansError::MathOverflow))
 }
 
-/// A single Token-2022-safe `transfer_checked` of `amount` from `from` to `to`
-/// (no-op when `amount == 0`). Works for SPL Token and Token-2022 via the
-/// token interface. `CpiContext::new` takes the program id (Pubkey) in 1.0.2.
-fn transfer_share<'info>(
+/// A single Token-2022-safe `transfer_checked` of `amount` from `from` to `to`,
+/// signed by a wallet `authority` (no-op when `amount == 0`). Works for SPL Token
+/// and Token-2022 via the token interface. `CpiContext::new` takes the program id
+/// (Pubkey) in 1.0.2.
+pub fn transfer_tokens<'info>(
     token_program: &Interface<'info, TokenInterface>,
     from: &InterfaceAccount<'info, TokenAccount>,
     to: &InterfaceAccount<'info, TokenAccount>,
@@ -138,6 +139,35 @@ fn transfer_share<'info>(
     };
     token_interface::transfer_checked(
         CpiContext::new(token_program.key(), cpi_accounts),
+        amount,
+        mint.decimals,
+    )?;
+    Ok(())
+}
+
+/// Like [`transfer_tokens`] but signed by a **PDA** `authority` (`signer_seeds`),
+/// e.g. paying staking rewards or returning stake out of a pool-owned vault.
+#[allow(clippy::too_many_arguments)]
+pub fn transfer_tokens_signed<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    from: &InterfaceAccount<'info, TokenAccount>,
+    to: &InterfaceAccount<'info, TokenAccount>,
+    mint: &InterfaceAccount<'info, Mint>,
+    authority: &AccountInfo<'info>,
+    signer_seeds: &[&[&[u8]]],
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
+    let cpi_accounts = TransferChecked {
+        from: from.to_account_info(),
+        mint: mint.to_account_info(),
+        to: to.to_account_info(),
+        authority: authority.clone(),
+    };
+    token_interface::transfer_checked(
+        CpiContext::new_with_signer(token_program.key(), cpi_accounts, signer_seeds),
         amount,
         mint.decimals,
     )?;
@@ -163,11 +193,11 @@ pub fn distribute_fee<'info>(
 ) -> Result<()> {
     let (mut treasury_share, staking_share, referral_share, burn_share) = config.fee_split(amount);
 
-    transfer_share(token_program, payer_token_account, staking_vault, mint, authority, staking_share)?;
-    transfer_share(token_program, payer_token_account, burn_vault, mint, authority, burn_share)?;
+    transfer_tokens(token_program, payer_token_account, staking_vault, mint, authority, staking_share)?;
+    transfer_tokens(token_program, payer_token_account, burn_vault, mint, authority, burn_share)?;
     match referral {
         Some(r) => {
-            transfer_share(token_program, payer_token_account, r, mint, authority, referral_share)?
+            transfer_tokens(token_program, payer_token_account, r, mint, authority, referral_share)?
         }
         // No referrer: the referral share goes to the treasury.
         None => {
@@ -176,6 +206,6 @@ pub fn distribute_fee<'info>(
                 .ok_or_else(|| error!(SolansError::MathOverflow))?
         }
     }
-    transfer_share(token_program, payer_token_account, treasury, mint, authority, treasury_share)?;
+    transfer_tokens(token_program, payer_token_account, treasury, mint, authority, treasury_share)?;
     Ok(())
 }

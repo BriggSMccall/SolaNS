@@ -32,9 +32,11 @@ import {
   findListing,
   findNameRecordPda,
   findOffer,
+  findStakePoolPda,
   getAcceptOfferInstruction,
   getBuyNameInstruction,
   getInitConfigInstructionAsync,
+  getInitStakePoolInstructionAsync,
   getListNameInstruction,
   getMakeOfferInstruction,
   getRegisterNameInstructionAsync,
@@ -316,6 +318,49 @@ export async function acceptOffer(
   await send(env.svm, signer, [
     getAcceptOfferInstruction({ owner: signer, buyer: buyerAddr, solTreasury: env.solTreasury, config, nameRecord, offer }),
   ]);
+}
+
+/** Create a fresh SPL mint (payer = mint authority); returns its address. */
+export async function createMint(env: TestEnv, decimals = 6): Promise<Address> {
+  const m = await generateKeyPairSigner();
+  await send(env.svm, env.payer, [
+    getCreateAccountInstruction({
+      payer: env.payer,
+      newAccount: m,
+      lamports: lamports(10_000_000n),
+      space: 82n,
+      programAddress: TOKEN_PROGRAM_ADDRESS,
+    }),
+    getInitializeMint2Instruction({ mint: m.address, decimals, mintAuthority: env.payer.address, freezeAuthority: null }),
+  ]);
+  return m.address;
+}
+
+/** Create `owner`'s ATA for `mint` and mint `amount` to it; returns the ATA. */
+export async function mintTokens(env: TestEnv, mint: Address, owner: Address, amount: bigint): Promise<Address> {
+  const [ata] = await findAssociatedTokenPda({ owner, mint, tokenProgram: TOKEN_PROGRAM_ADDRESS });
+  await send(env.svm, env.payer, [
+    await getCreateAssociatedTokenIdempotentInstructionAsync({ payer: env.payer, owner, mint }),
+    getMintToInstruction({ mint, token: ata, mintAuthority: env.payer, amount }),
+  ]);
+  return ata;
+}
+
+export type StakingCtx = { solansMint: Address; stakePool: Address; stakeVault: Address; rewardVault: Address };
+
+/** Create the `$SOLANS` mint + staking pool (which repoints Config.staking_vault). */
+export async function initStaking(env: TestEnv): Promise<StakingCtx> {
+  const solansMint = await createMint(env, 6);
+  await send(env.svm, env.payer, [
+    await getInitStakePoolInstructionAsync({ admin: env.payer, solansMint, paymentMint: env.mint }),
+  ]);
+  const [stakePool] = await findStakePoolPda();
+  const [stakeVault] = await findAssociatedTokenPda({ owner: stakePool, mint: solansMint, tokenProgram: TOKEN_PROGRAM_ADDRESS });
+  const [rewardVault] = await findAssociatedTokenPda({ owner: stakePool, mint: env.mint, tokenProgram: TOKEN_PROGRAM_ADDRESS });
+  // init_stake_pool repoints Config.staking_vault at the pool reward vault on-chain,
+  // so subsequent registerName fee routing must target it too.
+  env.stakingVault = rewardVault;
+  return { solansMint, stakePool, stakeVault, rewardVault };
 }
 
 /** Boot a LiteSVM, load the program, create a 6-decimal mint + funded payer ATA + treasury, init config. */

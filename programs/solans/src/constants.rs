@@ -6,10 +6,15 @@ pub const NAME_SEED: &[u8] = b"name";
 pub const REVERSE_SEED: &[u8] = b"reverse";
 pub const LISTING_SEED: &[u8] = b"listing";
 pub const OFFER_SEED: &[u8] = b"offer";
+pub const STAKE_POOL_SEED: &[u8] = b"stake_pool";
+pub const STAKE_SEED: &[u8] = b"stake";
 
 // Marketplace fee math: basis-point denominator + a hard cap on the fee.
 pub const BPS_DENOMINATOR: u64 = 10_000;
 pub const MAX_FEE_BPS: u16 = 1_000; // 10% ceiling, validated in config
+
+// Staking reward-per-share fixed-point scale (1e12), to keep per-share precision.
+pub const ACC_SCALE: u128 = 1_000_000_000_000;
 
 // Name constraints (enforced on-chain over raw bytes).
 pub const NAME_MIN_LEN: usize = 1;

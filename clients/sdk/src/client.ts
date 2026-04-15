@@ -4,15 +4,21 @@ import {
   decodeNameRecord,
   decodeOffer,
   decodeReverseRecord,
+  decodeStakeAccount,
+  decodeStakePool,
   findListing,
   findNameRecord,
   findNameRecordPda,
   findOffer,
   findReverseRecordPda,
+  findStakeAccountPda,
+  findStakePoolPda,
   type Listing,
   type NameRecord,
   type Offer,
   type Record as SolansRecord,
+  type StakeAccount,
+  type StakePool,
 } from "@solans/client";
 
 /** Loads a raw account by address. Lets the SDK run against an RPC or litesvm. */
@@ -80,6 +86,38 @@ export class SolansClient {
     const [pda] = await findOffer(name, buyer);
     const acct = await this.fetchAccount(pda);
     return acct.exists ? decodeOffer(acct).data : null;
+  }
+
+  /** The global `$SOLANS` staking pool, or null if not initialized. */
+  async getStakePool(): Promise<StakePool | null> {
+    const [pda] = await findStakePoolPda();
+    const acct = await this.fetchAccount(pda);
+    return acct.exists ? decodeStakePool(acct).data : null;
+  }
+
+  /** A staker's position, or null. */
+  async getStake(staker: Address): Promise<StakeAccount | null> {
+    const [pda] = await findStakeAccountPda({ staker });
+    const acct = await this.fetchAccount(pda);
+    return acct.exists ? decodeStakeAccount(acct).data : null;
+  }
+
+  /** Pending (claimable) reward for a staker, accounting for vault deposits since the last sync. */
+  async pendingReward(staker: Address): Promise<bigint> {
+    const [pool, stake] = await Promise.all([this.getStakePool(), this.getStake(staker)]);
+    if (!pool || !stake || stake.amount === 0n) return 0n;
+    let accPerShare = pool.accRewardPerShare;
+    if (pool.totalStaked > 0n) {
+      const rv = await this.fetchAccount(pool.rewardVault);
+      if (rv.exists) {
+        // Token account `amount` is a u64 at offset 64.
+        const bal = rv.data.subarray(64, 72).reduce((a, b, i) => a + (BigInt(b) << BigInt(8 * i)), 0n);
+        const delta = bal > pool.lastRewardBalance ? bal - pool.lastRewardBalance : 0n;
+        accPerShare += (delta * 1_000_000_000_000n) / pool.totalStaked;
+      }
+    }
+    const accrued = (stake.amount * accPerShare) / 1_000_000_000_000n;
+    return accrued > stake.rewardDebt ? accrued - stake.rewardDebt : 0n;
   }
 
   /** A single record value by key, or null. */

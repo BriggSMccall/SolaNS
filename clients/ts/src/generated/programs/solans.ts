@@ -60,11 +60,13 @@ import {
 import {
   getAcceptOfferInstructionAsync,
   getBurnNameInstruction,
+  getBuybackBurnInstructionAsync,
   getBuyNameInstructionAsync,
   getCancelListingInstruction,
   getCancelOfferInstruction,
   getClaimExpiredInstructionAsync,
   getClaimRewardsInstructionAsync,
+  getInitBurnPoolInstructionAsync,
   getInitConfigInstructionAsync,
   getInitStakePoolInstructionAsync,
   getListNameInstruction,
@@ -72,12 +74,15 @@ import {
   getMakeOfferInstruction,
   getRedeemNameInstructionAsync,
   getRegisterNameInstructionAsync,
+  getRegisterWithSolansInstructionAsync,
   getRenewNameInstructionAsync,
+  getRenewWithSolansInstructionAsync,
   getRevokeSubdomainInstruction,
   getSetControllerInstruction,
   getSetHostingInstruction,
   getSetResolverInstruction,
   getSetReverseInstructionAsync,
+  getSetSolansParamsInstructionAsync,
   getStakeInstructionAsync,
   getTokenizeNameInstructionAsync,
   getTransferNameInstruction,
@@ -88,11 +93,13 @@ import {
   getWrapSubdomainInstructionAsync,
   parseAcceptOfferInstruction,
   parseBurnNameInstruction,
+  parseBuybackBurnInstruction,
   parseBuyNameInstruction,
   parseCancelListingInstruction,
   parseCancelOfferInstruction,
   parseClaimExpiredInstruction,
   parseClaimRewardsInstruction,
+  parseInitBurnPoolInstruction,
   parseInitConfigInstruction,
   parseInitStakePoolInstruction,
   parseListNameInstruction,
@@ -100,12 +107,15 @@ import {
   parseMakeOfferInstruction,
   parseRedeemNameInstruction,
   parseRegisterNameInstruction,
+  parseRegisterWithSolansInstruction,
   parseRenewNameInstruction,
+  parseRenewWithSolansInstruction,
   parseRevokeSubdomainInstruction,
   parseSetControllerInstruction,
   parseSetHostingInstruction,
   parseSetResolverInstruction,
   parseSetReverseInstruction,
+  parseSetSolansParamsInstruction,
   parseStakeInstruction,
   parseTokenizeNameInstruction,
   parseTransferNameInstruction,
@@ -116,11 +126,13 @@ import {
   parseWrapSubdomainInstruction,
   type AcceptOfferAsyncInput,
   type BurnNameInput,
+  type BuybackBurnAsyncInput,
   type BuyNameAsyncInput,
   type CancelListingInput,
   type CancelOfferInput,
   type ClaimExpiredAsyncInput,
   type ClaimRewardsAsyncInput,
+  type InitBurnPoolAsyncInput,
   type InitConfigAsyncInput,
   type InitStakePoolAsyncInput,
   type ListNameInput,
@@ -128,11 +140,13 @@ import {
   type MakeOfferInput,
   type ParsedAcceptOfferInstruction,
   type ParsedBurnNameInstruction,
+  type ParsedBuybackBurnInstruction,
   type ParsedBuyNameInstruction,
   type ParsedCancelListingInstruction,
   type ParsedCancelOfferInstruction,
   type ParsedClaimExpiredInstruction,
   type ParsedClaimRewardsInstruction,
+  type ParsedInitBurnPoolInstruction,
   type ParsedInitConfigInstruction,
   type ParsedInitStakePoolInstruction,
   type ParsedListNameInstruction,
@@ -140,12 +154,15 @@ import {
   type ParsedMakeOfferInstruction,
   type ParsedRedeemNameInstruction,
   type ParsedRegisterNameInstruction,
+  type ParsedRegisterWithSolansInstruction,
   type ParsedRenewNameInstruction,
+  type ParsedRenewWithSolansInstruction,
   type ParsedRevokeSubdomainInstruction,
   type ParsedSetControllerInstruction,
   type ParsedSetHostingInstruction,
   type ParsedSetResolverInstruction,
   type ParsedSetReverseInstruction,
+  type ParsedSetSolansParamsInstruction,
   type ParsedStakeInstruction,
   type ParsedTokenizeNameInstruction,
   type ParsedTransferNameInstruction,
@@ -156,12 +173,15 @@ import {
   type ParsedWrapSubdomainInstruction,
   type RedeemNameAsyncInput,
   type RegisterNameAsyncInput,
+  type RegisterWithSolansAsyncInput,
   type RenewNameAsyncInput,
+  type RenewWithSolansAsyncInput,
   type RevokeSubdomainInput,
   type SetControllerInput,
   type SetHostingInput,
   type SetResolverInput,
   type SetReverseAsyncInput,
+  type SetSolansParamsAsyncInput,
   type StakeAsyncInput,
   type TokenizeNameAsyncInput,
   type TransferNameInput,
@@ -285,10 +305,12 @@ export enum SolansInstruction {
   AcceptOffer,
   BurnName,
   BuyName,
+  BuybackBurn,
   CancelListing,
   CancelOffer,
   ClaimExpired,
   ClaimRewards,
+  InitBurnPool,
   InitConfig,
   InitStakePool,
   ListName,
@@ -296,12 +318,15 @@ export enum SolansInstruction {
   MakeOffer,
   RedeemName,
   RegisterName,
+  RegisterWithSolans,
   RenewName,
+  RenewWithSolans,
   RevokeSubdomain,
   SetController,
   SetHosting,
   SetResolver,
   SetReverse,
+  SetSolansParams,
   Stake,
   TokenizeName,
   TransferName,
@@ -353,6 +378,17 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([20, 254, 58, 252, 209, 32, 111, 97]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.BuybackBurn;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([41, 183, 50, 232, 230, 233, 157, 70]),
       ),
       0,
@@ -392,6 +428,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.ClaimRewards;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([133, 239, 244, 64, 49, 161, 219, 25]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.InitBurnPool;
   }
   if (
     containsBytes(
@@ -474,12 +521,34 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([16, 245, 158, 68, 101, 91, 138, 215]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.RegisterWithSolans;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([236, 176, 53, 141, 135, 23, 77, 87]),
       ),
       0,
     )
   ) {
     return SolansInstruction.RenewName;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([216, 153, 16, 43, 181, 31, 35, 80]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.RenewWithSolans;
   }
   if (
     containsBytes(
@@ -535,6 +604,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.SetReverse;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([91, 68, 181, 191, 248, 118, 235, 102]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.SetSolansParams;
   }
   if (
     containsBytes(
@@ -643,6 +723,9 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.BuyName;
     } & ParsedBuyNameInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.BuybackBurn;
+    } & ParsedBuybackBurnInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.CancelListing;
     } & ParsedCancelListingInstruction<TProgram>)
   | ({
@@ -654,6 +737,9 @@ export type ParsedSolansInstruction<
   | ({
       instructionType: SolansInstruction.ClaimRewards;
     } & ParsedClaimRewardsInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.InitBurnPool;
+    } & ParsedInitBurnPoolInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.InitConfig;
     } & ParsedInitConfigInstruction<TProgram>)
@@ -676,8 +762,14 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.RegisterName;
     } & ParsedRegisterNameInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.RegisterWithSolans;
+    } & ParsedRegisterWithSolansInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.RenewName;
     } & ParsedRenewNameInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.RenewWithSolans;
+    } & ParsedRenewWithSolansInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.RevokeSubdomain;
     } & ParsedRevokeSubdomainInstruction<TProgram>)
@@ -693,6 +785,9 @@ export type ParsedSolansInstruction<
   | ({
       instructionType: SolansInstruction.SetReverse;
     } & ParsedSetReverseInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.SetSolansParams;
+    } & ParsedSetSolansParamsInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.Stake;
     } & ParsedStakeInstruction<TProgram>)
@@ -744,6 +839,13 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseBuyNameInstruction(instruction),
       };
     }
+    case SolansInstruction.BuybackBurn: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.BuybackBurn,
+        ...parseBuybackBurnInstruction(instruction),
+      };
+    }
     case SolansInstruction.CancelListing: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -770,6 +872,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.ClaimRewards,
         ...parseClaimRewardsInstruction(instruction),
+      };
+    }
+    case SolansInstruction.InitBurnPool: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.InitBurnPool,
+        ...parseInitBurnPoolInstruction(instruction),
       };
     }
     case SolansInstruction.InitConfig: {
@@ -821,11 +930,25 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseRegisterNameInstruction(instruction),
       };
     }
+    case SolansInstruction.RegisterWithSolans: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.RegisterWithSolans,
+        ...parseRegisterWithSolansInstruction(instruction),
+      };
+    }
     case SolansInstruction.RenewName: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: SolansInstruction.RenewName,
         ...parseRenewNameInstruction(instruction),
+      };
+    }
+    case SolansInstruction.RenewWithSolans: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.RenewWithSolans,
+        ...parseRenewWithSolansInstruction(instruction),
       };
     }
     case SolansInstruction.RevokeSubdomain: {
@@ -861,6 +984,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.SetReverse,
         ...parseSetReverseInstruction(instruction),
+      };
+    }
+    case SolansInstruction.SetSolansParams: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.SetSolansParams,
+        ...parseSetSolansParamsInstruction(instruction),
       };
     }
     case SolansInstruction.Stake: {
@@ -964,6 +1094,10 @@ export type SolansPluginInstructions = {
   buyName: (
     input: BuyNameAsyncInput,
   ) => ReturnType<typeof getBuyNameInstructionAsync> & SelfPlanAndSendFunctions;
+  buybackBurn: (
+    input: BuybackBurnAsyncInput,
+  ) => ReturnType<typeof getBuybackBurnInstructionAsync> &
+    SelfPlanAndSendFunctions;
   cancelListing: (
     input: CancelListingInput,
   ) => ReturnType<typeof getCancelListingInstruction> &
@@ -978,6 +1112,10 @@ export type SolansPluginInstructions = {
   claimRewards: (
     input: ClaimRewardsAsyncInput,
   ) => ReturnType<typeof getClaimRewardsInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  initBurnPool: (
+    input: InitBurnPoolAsyncInput,
+  ) => ReturnType<typeof getInitBurnPoolInstructionAsync> &
     SelfPlanAndSendFunctions;
   initConfig: (
     input: InitConfigAsyncInput,
@@ -1004,9 +1142,17 @@ export type SolansPluginInstructions = {
     input: MakeOptional<RegisterNameAsyncInput, "payer">,
   ) => ReturnType<typeof getRegisterNameInstructionAsync> &
     SelfPlanAndSendFunctions;
+  registerWithSolans: (
+    input: MakeOptional<RegisterWithSolansAsyncInput, "payer">,
+  ) => ReturnType<typeof getRegisterWithSolansInstructionAsync> &
+    SelfPlanAndSendFunctions;
   renewName: (
     input: MakeOptional<RenewNameAsyncInput, "payer">,
   ) => ReturnType<typeof getRenewNameInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  renewWithSolans: (
+    input: MakeOptional<RenewWithSolansAsyncInput, "payer">,
+  ) => ReturnType<typeof getRenewWithSolansInstructionAsync> &
     SelfPlanAndSendFunctions;
   revokeSubdomain: (
     input: RevokeSubdomainInput,
@@ -1025,6 +1171,10 @@ export type SolansPluginInstructions = {
   setReverse: (
     input: SetReverseAsyncInput,
   ) => ReturnType<typeof getSetReverseInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  setSolansParams: (
+    input: SetSolansParamsAsyncInput,
+  ) => ReturnType<typeof getSetSolansParamsInstructionAsync> &
     SelfPlanAndSendFunctions;
   stake: (
     input: StakeAsyncInput,
@@ -1101,6 +1251,11 @@ export function solansProgram() {
               client,
               getBuyNameInstructionAsync(input),
             ),
+          buybackBurn: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getBuybackBurnInstructionAsync(input),
+            ),
           cancelListing: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -1120,6 +1275,11 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getClaimRewardsInstructionAsync(input),
+            ),
+          initBurnPool: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getInitBurnPoolInstructionAsync(input),
             ),
           initConfig: (input) =>
             addSelfPlanAndSendFunctions(
@@ -1153,10 +1313,26 @@ export function solansProgram() {
                 payer: input.payer ?? client.payer,
               }),
             ),
+          registerWithSolans: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getRegisterWithSolansInstructionAsync({
+                ...input,
+                payer: input.payer ?? client.payer,
+              }),
+            ),
           renewName: (input) =>
             addSelfPlanAndSendFunctions(
               client,
               getRenewNameInstructionAsync({
+                ...input,
+                payer: input.payer ?? client.payer,
+              }),
+            ),
+          renewWithSolans: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getRenewWithSolansInstructionAsync({
                 ...input,
                 payer: input.payer ?? client.payer,
               }),
@@ -1185,6 +1361,11 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getSetReverseInstructionAsync(input),
+            ),
+          setSolansParams: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getSetSolansParamsInstructionAsync(input),
             ),
           stake: (input) =>
             addSelfPlanAndSendFunctions(

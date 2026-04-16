@@ -16,6 +16,10 @@ pub const MAX_FEE_BPS: u16 = 1_000; // 10% ceiling, validated in config
 // Staking reward-per-share fixed-point scale (1e12), to keep per-share precision.
 pub const ACC_SCALE: u128 = 1_000_000_000_000;
 
+// §8.1 pay-in-`$SOLANS` rate scale: `Config.solans_rate` is `$SOLANS` base units
+// per 1 payment-mint base unit, scaled by this (e.g. 1:1 => rate = 1_000_000).
+pub const SOLANS_RATE_SCALE: u64 = 1_000_000;
+
 // Name constraints (enforced on-chain over raw bytes).
 pub const NAME_MIN_LEN: usize = 1;
 pub const NAME_MAX_LEN: usize = 63; // DNS label cap

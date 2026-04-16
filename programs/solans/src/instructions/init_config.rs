@@ -94,6 +94,11 @@ pub fn handler(
     config.staking_fee_bps = staking_fee_bps;
     config.referral_fee_bps = referral_fee_bps;
     config.burn_fee_bps = burn_fee_bps;
+    // §8.1 pay-in-`$SOLANS` is disabled until `init_burn_pool` + `set_solans_params`
+    // turn it on (the `$SOLANS` mint doesn't exist yet at config init).
+    config.solans_mint = Pubkey::default();
+    config.solans_rate = 0;
+    config.solans_discount_bps = 0;
     config.bump = ctx.bumps.config;
     Ok(())
 }

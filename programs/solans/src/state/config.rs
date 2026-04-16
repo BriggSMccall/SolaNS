@@ -1,3 +1,4 @@
+use crate::error::SolansError;
 use anchor_lang::prelude::*;
 
 /// Global registry configuration (singleton PDA, seeds = [b"config"]).
@@ -38,6 +39,13 @@ pub struct Config {
     pub staking_fee_bps: u16,
     pub referral_fee_bps: u16,
     pub burn_fee_bps: u16,
+    /// `$SOLANS` token mint (§8.1). `Pubkey::default()` until `init_burn_pool` sets it.
+    pub solans_mint: Pubkey,
+    /// `$SOLANS` base units per 1 payment-mint base unit, scaled by `SOLANS_RATE_SCALE`.
+    /// Admin-set (no oracle). `0` disables pay-in-`$SOLANS` / buyback.
+    pub solans_rate: u64,
+    /// Discount (bps) applied when paying a registration/renewal fee in `$SOLANS` (§8.1).
+    pub solans_discount_bps: u16,
     /// Canonical PDA bump.
     pub bump: u8,
 }
@@ -86,5 +94,38 @@ impl Config {
             .saturating_sub(referral)
             .saturating_sub(burn);
         (treasury, staking, referral, burn)
+    }
+
+    /// Whether pay-in-`$SOLANS` / buyback are enabled (mint + rate set, §8.1).
+    pub fn solans_enabled(&self) -> bool {
+        self.solans_mint != Pubkey::default() && self.solans_rate > 0
+    }
+
+    /// `$SOLANS` owed to pay a `usdc_fee` (payment-mint) registration/renewal fee,
+    /// after the §8.1 pay-in discount: `usdc_fee × rate / SCALE × (1 − discount)`.
+    pub fn solans_fee(&self, usdc_fee: u64) -> Result<u64> {
+        let scale = crate::constants::SOLANS_RATE_SCALE as u128;
+        let gross = (usdc_fee as u128)
+            .checked_mul(self.solans_rate as u128)
+            .and_then(|v| v.checked_div(scale))
+            .ok_or_else(|| error!(SolansError::MathOverflow))?;
+        let keep_bps = (crate::constants::BPS_DENOMINATOR as u128)
+            .saturating_sub(self.solans_discount_bps as u128);
+        let net = gross
+            .checked_mul(keep_bps)
+            .and_then(|v| v.checked_div(crate::constants::BPS_DENOMINATOR as u128))
+            .ok_or_else(|| error!(SolansError::MathOverflow))?;
+        u64::try_from(net).map_err(|_| error!(SolansError::MathOverflow))
+    }
+
+    /// Payment-mint USDC reimbursed to a keeper burning `solans_amount` `$SOLANS`
+    /// (§8.1 buyback): the inverse of the (undiscounted) rate, `solans × SCALE / rate`.
+    pub fn buyback_usdc(&self, solans_amount: u64) -> Result<u64> {
+        let scale = crate::constants::SOLANS_RATE_SCALE as u128;
+        let usdc = (solans_amount as u128)
+            .checked_mul(scale)
+            .and_then(|v| v.checked_div(self.solans_rate as u128))
+            .ok_or_else(|| error!(SolansError::MathOverflow))?;
+        u64::try_from(usdc).map_err(|_| error!(SolansError::MathOverflow))
     }
 }

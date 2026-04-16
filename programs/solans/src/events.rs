@@ -47,3 +47,27 @@ pub struct OfferCancelled {
     pub name_hash: [u8; 32],
     pub buyer: Pubkey,
 }
+
+/// A name registered by paying the fee in `$SOLANS` (§8.1), which is burned.
+#[event]
+pub struct RegisteredWithSolans {
+    pub name_hash: [u8; 32],
+    pub payer: Pubkey,
+    pub solans_burned: u64,
+}
+
+/// A name renewed by paying the fee in `$SOLANS` (§8.1), which is burned.
+#[event]
+pub struct RenewedWithSolans {
+    pub name_hash: [u8; 32],
+    pub payer: Pubkey,
+    pub solans_burned: u64,
+}
+
+/// A keeper burned `$SOLANS` and drained the burn vault in exchange (§8.1 buyback).
+#[event]
+pub struct BuybackBurn {
+    pub keeper: Pubkey,
+    pub solans_burned: u64,
+    pub usdc_reimbursed: u64,
+}

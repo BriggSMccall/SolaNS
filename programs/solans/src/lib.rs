@@ -188,6 +188,41 @@ pub mod solans {
         instructions::claim_rewards::handler(ctx)
     }
 
+    pub fn init_burn_pool(ctx: Context<InitBurnPool>) -> Result<()> {
+        instructions::init_burn_pool::handler(ctx)
+    }
+
+    pub fn set_solans_params(
+        ctx: Context<SetSolansParams>,
+        solans_rate: u64,
+        solans_discount_bps: u16,
+    ) -> Result<()> {
+        instructions::set_solans_params::handler(ctx, solans_rate, solans_discount_bps)
+    }
+
+    pub fn register_with_solans(
+        ctx: Context<RegisterWithSolans>,
+        name: String,
+        tld: String,
+        name_hash: [u8; 32],
+        years: u16,
+    ) -> Result<()> {
+        instructions::register_with_solans::handler(ctx, name, tld, name_hash, years)
+    }
+
+    pub fn renew_with_solans(
+        ctx: Context<RenewWithSolans>,
+        name: String,
+        tld: String,
+        years: u16,
+    ) -> Result<()> {
+        instructions::renew_with_solans::handler(ctx, name, tld, years)
+    }
+
+    pub fn buyback_burn(ctx: Context<BuybackBurn>, solans_amount: u64) -> Result<()> {
+        instructions::buyback_burn::handler(ctx, solans_amount)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_config(
         ctx: Context<UpdateConfig>,

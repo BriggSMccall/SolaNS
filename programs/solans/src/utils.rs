@@ -2,7 +2,7 @@ use crate::constants::*;
 use crate::error::SolansError;
 use crate::state::{Config, NameRecord};
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked};
+use anchor_spl::token_interface::{self, Burn, Mint, TokenAccount, TokenInterface, TransferChecked};
 use solana_sha256_hasher::hashv;
 
 /// Whether `signer` may perform record-level operations on `nr`.
@@ -172,6 +172,58 @@ pub fn transfer_tokens_signed<'info>(
         mint.decimals,
     )?;
     Ok(())
+}
+
+/// Burn `amount` tokens from a wallet-owned `from` account (no-op when `amount ==
+/// 0`). Used by the §8.1 pay-in-`$SOLANS` paths and the buyback keeper to reduce
+/// `$SOLANS` supply. The `authority` signs for its own account (no PDA).
+pub fn burn_tokens<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    mint: &InterfaceAccount<'info, Mint>,
+    from: &InterfaceAccount<'info, TokenAccount>,
+    authority: &Signer<'info>,
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
+    let cpi_accounts = Burn {
+        mint: mint.to_account_info(),
+        from: from.to_account_info(),
+        authority: authority.to_account_info(),
+    };
+    token_interface::burn(CpiContext::new(token_program.key(), cpi_accounts), amount)?;
+    Ok(())
+}
+
+/// Initialize a freshly `init`-ed top-level `NameRecord` (shared by the USDC and
+/// pay-in-`$SOLANS` register paths so the two stay byte-for-byte identical).
+pub fn init_top_level_record(
+    nr: &mut NameRecord,
+    owner: Pubkey,
+    name_hash: [u8; 32],
+    tld: String,
+    now: i64,
+    expires_at: i64,
+    bump: u8,
+) {
+    nr.owner = owner;
+    nr.controller = None;
+    nr.name_hash = name_hash;
+    nr.tld = tld;
+    nr.registered_at = now;
+    nr.expires_at = expires_at;
+    nr.records = Vec::new();
+    nr.resolver = None;
+    nr.hosting_ref = None;
+    nr.transfer_locked = false;
+    nr.reverse_set = false;
+    nr.nft_mint = None;
+    nr.parent = None;
+    nr.parent_registered_at = 0;
+    nr.depth = 0;
+    nr.listed = false;
+    nr.bump = bump;
 }
 
 /// Charge `amount` from the payer and distribute it per the §8.2 fee split:

@@ -1,16 +1,20 @@
 use crate::constants::*;
 use crate::error::SolansError;
+use crate::events::RegisteredWithSolans;
 use crate::state::{Config, NameRecord};
 use crate::utils::{
-    compute_name_hash, distribute_fee, init_top_level_record, validate_name, validate_tld,
+    burn_tokens, compute_name_hash, init_top_level_record, validate_name, validate_tld,
     validate_years, years_to_secs,
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
+/// Register a name by paying the fee in `$SOLANS` at the §8.1 discount; the
+/// `$SOLANS` is burned on the spot (deflationary). Mirrors `register_name` but
+/// swaps the §8.2 fee distribution for a burn of the payer's own `$SOLANS`.
 #[derive(Accounts)]
 #[instruction(name: String, tld: String, name_hash: [u8; 32])]
-pub struct RegisterName<'info> {
+pub struct RegisterWithSolans<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
@@ -29,48 +33,28 @@ pub struct RegisterName<'info> {
     )]
     pub name_record: Account<'info, NameRecord>,
 
+    /// Payer's `$SOLANS` account; the discounted fee is burned from here.
     #[account(
         mut,
-        token::mint = payment_mint,
+        token::mint = solans_mint,
         token::authority = payer,
         token::token_program = token_program,
     )]
-    pub payer_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub payer_solans_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         mut,
-        constraint = treasury_token_account.key() == config.treasury_token_account @ SolansError::InvalidTreasury,
-        token::token_program = token_program,
+        address = config.solans_mint @ SolansError::InvalidMint,
+        mint::token_program = token_program,
     )]
-    pub treasury_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    #[account(
-        mut,
-        constraint = staking_vault.key() == config.staking_vault @ SolansError::InvalidTreasury,
-        token::token_program = token_program,
-    )]
-    pub staking_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    #[account(
-        mut,
-        constraint = burn_vault.key() == config.burn_vault @ SolansError::InvalidTreasury,
-        token::token_program = token_program,
-    )]
-    pub burn_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    /// Optional referrer (gets the §8.2 referral share); omit to fold it into treasury.
-    #[account(mut, token::mint = payment_mint, token::token_program = token_program)]
-    pub referral_token_account: Option<Box<InterfaceAccount<'info, TokenAccount>>>,
-
-    #[account(constraint = payment_mint.key() == config.payment_mint @ SolansError::InvalidMint)]
-    pub payment_mint: InterfaceAccount<'info, Mint>,
+    pub solans_mint: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }
 
 pub fn handler(
-    ctx: Context<RegisterName>,
+    ctx: Context<RegisterWithSolans>,
     name: String,
     tld: String,
     name_hash: [u8; 32],
@@ -84,23 +68,20 @@ pub fn handler(
     );
 
     let config = &ctx.accounts.config;
+    require!(config.solans_enabled(), SolansError::SolansNotConfigured);
     validate_years(years, config.min_years, config.max_years)?;
-    let amount = config
+    let usdc_fee = config
         .price_for_label(&name)
         .checked_mul(years as u64)
         .ok_or_else(|| error!(SolansError::MathOverflow))?;
+    let solans_burned = config.solans_fee(usdc_fee)?;
 
-    distribute_fee(
+    burn_tokens(
         &ctx.accounts.token_program,
-        &ctx.accounts.payer_token_account,
-        &ctx.accounts.treasury_token_account,
-        &ctx.accounts.staking_vault,
-        &ctx.accounts.burn_vault,
-        ctx.accounts.referral_token_account.as_deref(),
-        &ctx.accounts.payment_mint,
+        &ctx.accounts.solans_mint,
+        &ctx.accounts.payer_solans_account,
         &ctx.accounts.payer,
-        amount,
-        &ctx.accounts.config,
+        solans_burned,
     )?;
 
     let now = Clock::get()?.unix_timestamp;
@@ -117,5 +98,11 @@ pub fn handler(
         expires_at,
         ctx.bumps.name_record,
     );
+
+    emit!(RegisteredWithSolans {
+        name_hash,
+        payer: ctx.accounts.payer.key(),
+        solans_burned,
+    });
     Ok(())
 }

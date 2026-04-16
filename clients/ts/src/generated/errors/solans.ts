@@ -84,9 +84,17 @@ export const SOLANS_ERROR__INVALID_FEE_SPLIT = 0x1790; // 6032
 export const SOLANS_ERROR__INSUFFICIENT_STAKE = 0x1791; // 6033
 /** StakeMintMismatch: Token account mint does not match the staking pool */
 export const SOLANS_ERROR__STAKE_MINT_MISMATCH = 0x1792; // 6034
+/** SolansNotConfigured: Pay-in-$SOLANS is not configured (set the mint, rate, and discount) */
+export const SOLANS_ERROR__SOLANS_NOT_CONFIGURED = 0x1793; // 6035
+/** InsufficientBurnVault: Burn vault has insufficient balance for this buyback */
+export const SOLANS_ERROR__INSUFFICIENT_BURN_VAULT = 0x1794; // 6036
+/** InvalidDiscount: Discount basis points must be less than 10000 */
+export const SOLANS_ERROR__INVALID_DISCOUNT = 0x1795; // 6037
 
 export type SolansError =
+  | typeof SOLANS_ERROR__INSUFFICIENT_BURN_VAULT
   | typeof SOLANS_ERROR__INSUFFICIENT_STAKE
+  | typeof SOLANS_ERROR__INVALID_DISCOUNT
   | typeof SOLANS_ERROR__INVALID_FEE_BPS
   | typeof SOLANS_ERROR__INVALID_FEE_SPLIT
   | typeof SOLANS_ERROR__INVALID_MINT
@@ -115,6 +123,7 @@ export type SolansError =
   | typeof SOLANS_ERROR__RECORD_NOT_FOUND
   | typeof SOLANS_ERROR__RECORD_TOO_LONG
   | typeof SOLANS_ERROR__SELF_PURCHASE
+  | typeof SOLANS_ERROR__SOLANS_NOT_CONFIGURED
   | typeof SOLANS_ERROR__STAKE_MINT_MISMATCH
   | typeof SOLANS_ERROR__SUBDOMAIN
   | typeof SOLANS_ERROR__TOKENIZED
@@ -125,7 +134,9 @@ export type SolansError =
 let solansErrorMessages: Record<SolansError, string> | undefined;
 if (process.env["NODE_ENV"] !== "production") {
   solansErrorMessages = {
+    [SOLANS_ERROR__INSUFFICIENT_BURN_VAULT]: `Burn vault has insufficient balance for this buyback`,
     [SOLANS_ERROR__INSUFFICIENT_STAKE]: `Insufficient staked balance`,
+    [SOLANS_ERROR__INVALID_DISCOUNT]: `Discount basis points must be less than 10000`,
     [SOLANS_ERROR__INVALID_FEE_BPS]: `Marketplace fee exceeds the maximum allowed`,
     [SOLANS_ERROR__INVALID_FEE_SPLIT]: `Fee-split basis points must sum to less than 10000`,
     [SOLANS_ERROR__INVALID_MINT]: `Payment mint does not match config`,
@@ -154,6 +165,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__RECORD_NOT_FOUND]: `Record key not found`,
     [SOLANS_ERROR__RECORD_TOO_LONG]: `Record key or value exceeds the maximum length`,
     [SOLANS_ERROR__SELF_PURCHASE]: `Buyer and seller must differ`,
+    [SOLANS_ERROR__SOLANS_NOT_CONFIGURED]: `Pay-in-$SOLANS is not configured (set the mint, rate, and discount)`,
     [SOLANS_ERROR__STAKE_MINT_MISMATCH]: `Token account mint does not match the staking pool`,
     [SOLANS_ERROR__SUBDOMAIN]: `Operation is not supported for a subdomain`,
     [SOLANS_ERROR__TOKENIZED]: `Name is tokenized as an NFT; redeem it first`,

@@ -1,11 +1,13 @@
 import { fetchEncodedAccount, unwrapOption, type Address, type MaybeEncodedAccount } from "@solana/kit";
 import {
+  decodeConfig,
   decodeListing,
   decodeNameRecord,
   decodeOffer,
   decodeReverseRecord,
   decodeStakeAccount,
   decodeStakePool,
+  findConfigPda,
   findListing,
   findNameRecord,
   findNameRecordPda,
@@ -13,6 +15,7 @@ import {
   findReverseRecordPda,
   findStakeAccountPda,
   findStakePoolPda,
+  type Config,
   type Listing,
   type NameRecord,
   type Offer,
@@ -20,6 +23,9 @@ import {
   type StakeAccount,
   type StakePool,
 } from "@solans/client";
+
+const SOLANS_RATE_SCALE = 1_000_000n;
+const BPS_DENOMINATOR = 10_000n;
 
 /** Loads a raw account by address. Lets the SDK run against an RPC or litesvm. */
 export type AccountFetcher = (address: Address) => Promise<MaybeEncodedAccount<Address>>;
@@ -86,6 +92,35 @@ export class SolansClient {
     const [pda] = await findOffer(name, buyer);
     const acct = await this.fetchAccount(pda);
     return acct.exists ? decodeOffer(acct).data : null;
+  }
+
+  /** The registry config singleton, or null if not initialized. */
+  async getConfig(): Promise<Config | null> {
+    const [pda] = await findConfigPda();
+    const acct = await this.fetchAccount(pda);
+    return acct.exists ? decodeConfig(acct).data : null;
+  }
+
+  /**
+   * `$SOLANS` owed to pay a `usdcFee` registration/renewal fee in `$SOLANS` after
+   * the §8.1 pay-in discount — mirrors `Config::solans_fee` on-chain. Throws if
+   * pay-in is not configured.
+   */
+  async quoteSolansFee(usdcFee: bigint): Promise<bigint> {
+    const cfg = await this.getConfig();
+    if (!cfg || cfg.solansRate === 0n) throw new Error("pay-in-$SOLANS is not configured");
+    const gross = (usdcFee * cfg.solansRate) / SOLANS_RATE_SCALE;
+    return (gross * (BPS_DENOMINATOR - BigInt(cfg.solansDiscountBps))) / BPS_DENOMINATOR;
+  }
+
+  /**
+   * Payment-mint reimbursement for a keeper burning `solansAmount` `$SOLANS` —
+   * mirrors `Config::buyback_usdc` (the inverse, undiscounted rate).
+   */
+  async quoteBuyback(solansAmount: bigint): Promise<bigint> {
+    const cfg = await this.getConfig();
+    if (!cfg || cfg.solansRate === 0n) throw new Error("pay-in-$SOLANS is not configured");
+    return (solansAmount * SOLANS_RATE_SCALE) / cfg.solansRate;
   }
 
   /** The global `$SOLANS` staking pool, or null if not initialized. */

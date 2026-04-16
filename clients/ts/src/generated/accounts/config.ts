@@ -84,6 +84,15 @@ export type Config = {
   stakingFeeBps: number;
   referralFeeBps: number;
   burnFeeBps: number;
+  /** `$SOLANS` token mint (§8.1). `Pubkey::default()` until `init_burn_pool` sets it. */
+  solansMint: Address;
+  /**
+   * `$SOLANS` base units per 1 payment-mint base unit, scaled by `SOLANS_RATE_SCALE`.
+   * Admin-set (no oracle). `0` disables pay-in-`$SOLANS` / buyback.
+   */
+  solansRate: bigint;
+  /** Discount (bps) applied when paying a registration/renewal fee in `$SOLANS` (§8.1). */
+  solansDiscountBps: number;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -120,6 +129,15 @@ export type ConfigArgs = {
   stakingFeeBps: number;
   referralFeeBps: number;
   burnFeeBps: number;
+  /** `$SOLANS` token mint (§8.1). `Pubkey::default()` until `init_burn_pool` sets it. */
+  solansMint: Address;
+  /**
+   * `$SOLANS` base units per 1 payment-mint base unit, scaled by `SOLANS_RATE_SCALE`.
+   * Admin-set (no oracle). `0` disables pay-in-`$SOLANS` / buyback.
+   */
+  solansRate: number | bigint;
+  /** Discount (bps) applied when paying a registration/renewal fee in `$SOLANS` (§8.1). */
+  solansDiscountBps: number;
   /** Canonical PDA bump. */
   bump: number;
 };
@@ -148,6 +166,9 @@ export function getConfigEncoder(): FixedSizeEncoder<ConfigArgs> {
       ["stakingFeeBps", getU16Encoder()],
       ["referralFeeBps", getU16Encoder()],
       ["burnFeeBps", getU16Encoder()],
+      ["solansMint", getAddressEncoder()],
+      ["solansRate", getU64Encoder()],
+      ["solansDiscountBps", getU16Encoder()],
       ["bump", getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: CONFIG_DISCRIMINATOR }),
@@ -177,6 +198,9 @@ export function getConfigDecoder(): FixedSizeDecoder<Config> {
     ["stakingFeeBps", getU16Decoder()],
     ["referralFeeBps", getU16Decoder()],
     ["burnFeeBps", getU16Decoder()],
+    ["solansMint", getAddressDecoder()],
+    ["solansRate", getU64Decoder()],
+    ["solansDiscountBps", getU16Decoder()],
     ["bump", getU8Decoder()],
   ]);
 }
@@ -240,5 +264,5 @@ export async function fetchAllMaybeConfig(
 }
 
 export function getConfigSize(): number {
-  return 269;
+  return 311;
 }

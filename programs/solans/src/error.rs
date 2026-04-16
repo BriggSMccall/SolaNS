@@ -72,4 +72,10 @@ pub enum SolansError {
     InsufficientStake,
     #[msg("Token account mint does not match the staking pool")]
     StakeMintMismatch,
+    #[msg("Pay-in-$SOLANS is not configured (set the mint, rate, and discount)")]
+    SolansNotConfigured,
+    #[msg("Burn vault has insufficient balance for this buyback")]
+    InsufficientBurnVault,
+    #[msg("Discount basis points must be less than 10000")]
+    InvalidDiscount,
 }

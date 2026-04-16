@@ -19,6 +19,7 @@ import {
   findAssociatedTokenPda,
   getCreateAssociatedTokenIdempotentInstructionAsync,
   getInitializeMint2Instruction,
+  getMintDecoder,
   getMintToInstruction,
   getTokenDecoder,
   TOKEN_PROGRAM_ADDRESS,
@@ -34,12 +35,17 @@ import {
   findOffer,
   findStakePoolPda,
   getAcceptOfferInstruction,
+  getBuybackBurnInstructionAsync,
   getBuyNameInstruction,
+  getInitBurnPoolInstructionAsync,
   getInitConfigInstructionAsync,
   getInitStakePoolInstructionAsync,
   getListNameInstruction,
   getMakeOfferInstruction,
   getRegisterNameInstructionAsync,
+  getRegisterWithSolansInstructionAsync,
+  getRenewWithSolansInstructionAsync,
+  getSetSolansParamsInstructionAsync,
   getWrapSubdomainInstructionAsync,
   nameInfo,
   nameParts,
@@ -148,6 +154,12 @@ export function readTokenAmount(svm: LiteSVM, ata: Address): bigint | null {
 export function accountExists(svm: LiteSVM, addr: Address): boolean {
   const a = svm.getAccount(addr);
   return a.exists && a.data.length > 0;
+}
+/** Total supply of an SPL mint (for asserting burns), or null if absent. */
+export function readMintSupply(svm: LiteSVM, mint: Address): bigint | null {
+  const a = svm.getAccount(mint);
+  if (!a.exists || a.data.length === 0) return null;
+  return getMintDecoder().decode(a.data).supply;
 }
 
 /** Warp the validator clock to a given unix timestamp (for expiry tests). */
@@ -361,6 +373,106 @@ export async function initStaking(env: TestEnv): Promise<StakingCtx> {
   // so subsequent registerName fee routing must target it too.
   env.stakingVault = rewardVault;
   return { solansMint, stakePool, stakeVault, rewardVault };
+}
+
+/** Create the §8.1 Config-owned buyback burn vault (repoints Config.burn_vault +
+ * records solans_mint). Returns the burn vault address. */
+export async function initBurnPool(env: TestEnv, solansMint: Address): Promise<Address> {
+  await send(env.svm, env.payer, [
+    await getInitBurnPoolInstructionAsync({ admin: env.payer, solansMint, paymentMint: env.mint }),
+  ]);
+  const [config] = await findConfigPda();
+  const [burnVault] = await findAssociatedTokenPda({ owner: config, mint: env.mint, tokenProgram: TOKEN_PROGRAM_ADDRESS });
+  // init_burn_pool repoints Config.burn_vault at the config-owned vault on-chain,
+  // so subsequent registerName burn-share routing must target it too.
+  env.burnVault = burnVault;
+  return burnVault;
+}
+
+/** Set the §8.1 pay-in-`$SOLANS` rate + discount (admin). */
+export async function setSolansParams(env: TestEnv, rate: bigint, discountBps: number): Promise<void> {
+  await send(env.svm, env.payer, [
+    await getSetSolansParamsInstructionAsync({
+      admin: env.payer,
+      solansRate: rate,
+      solansDiscountBps: discountBps,
+    }),
+  ]);
+}
+
+/** Register a name paying the fee in `$SOLANS` (§8.1). Returns the name-record PDA. */
+export async function registerWithSolans(
+  env: TestEnv,
+  name: string,
+  solansMint: Address,
+  opts?: { owner?: Address; years?: number; payer?: KeyPairSigner; payerSolansAccount?: Address },
+): Promise<Address> {
+  const payer = opts?.payer ?? env.payer;
+  const { name: label, tld, hash } = nameParts(name);
+  const payerSolansAccount =
+    opts?.payerSolansAccount ??
+    (await findAssociatedTokenPda({ owner: payer.address, mint: solansMint, tokenProgram: TOKEN_PROGRAM_ADDRESS }))[0];
+  await send(env.svm, payer, [
+    await getRegisterWithSolansInstructionAsync({
+      payer,
+      owner: opts?.owner ?? payer.address,
+      payerSolansAccount,
+      solansMint,
+      name: label,
+      tld,
+      nameHash: hash,
+      years: opts?.years ?? 1,
+    }),
+  ]);
+  const [pda] = await findNameRecordPda({ nameHash: hash });
+  return pda;
+}
+
+/** Renew a name paying the fee in `$SOLANS` (§8.1). */
+export async function renewWithSolans(
+  env: TestEnv,
+  name: string,
+  solansMint: Address,
+  opts?: { years?: number; payer?: KeyPairSigner; payerSolansAccount?: Address },
+): Promise<void> {
+  const payer = opts?.payer ?? env.payer;
+  const { name: label, tld, hash } = nameParts(name);
+  const [nameRecord] = await findNameRecordPda({ nameHash: hash });
+  const payerSolansAccount =
+    opts?.payerSolansAccount ??
+    (await findAssociatedTokenPda({ owner: payer.address, mint: solansMint, tokenProgram: TOKEN_PROGRAM_ADDRESS }))[0];
+  await send(env.svm, payer, [
+    await getRenewWithSolansInstructionAsync({
+      payer,
+      nameRecord,
+      payerSolansAccount,
+      solansMint,
+      name: label,
+      tld,
+      years: opts?.years ?? 1,
+    }),
+  ]);
+}
+
+/** Buyback-burn `solansAmount` $SOLANS as `keeper` (default env.payer). */
+export async function buyback(
+  env: TestEnv,
+  solansMint: Address,
+  solansAmount: bigint,
+  keeper?: KeyPairSigner,
+): Promise<void> {
+  const signer = keeper ?? env.payer;
+  await send(env.svm, signer, [
+    await getBuybackBurnInstructionAsync({
+      keeper: signer,
+      burnVault: env.burnVault,
+      keeperPaymentAccount: (await findAssociatedTokenPda({ owner: signer.address, mint: env.mint, tokenProgram: TOKEN_PROGRAM_ADDRESS }))[0],
+      keeperSolansAccount: (await findAssociatedTokenPda({ owner: signer.address, mint: solansMint, tokenProgram: TOKEN_PROGRAM_ADDRESS }))[0],
+      solansMint,
+      paymentMint: env.mint,
+      solansAmount,
+    }),
+  ]);
 }
 
 /** Boot a LiteSVM, load the program, create a 6-decimal mint + funded payer ATA + treasury, init config. */

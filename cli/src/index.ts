@@ -7,11 +7,13 @@ import {
   findOffer,
   getAcceptOfferInstruction,
   getBurnNameInstruction,
+  getBuybackBurnInstructionAsync,
   getBuyNameInstruction,
   getCancelListingInstruction,
   getCancelOfferInstruction,
   getClaimExpiredInstructionAsync,
   getClaimRewardsInstructionAsync,
+  getInitBurnPoolInstructionAsync,
   getInitConfigInstructionAsync,
   getInitStakePoolInstructionAsync,
   getListNameInstruction,
@@ -21,7 +23,10 @@ import {
   getMakeOfferInstruction,
   getRedeemNameInstructionAsync,
   getRegisterNameInstructionAsync,
+  getRegisterWithSolansInstructionAsync,
   getRenewNameInstructionAsync,
+  getRenewWithSolansInstructionAsync,
+  getSetSolansParamsInstructionAsync,
   getRevokeSubdomainInstruction,
   getSetControllerInstruction,
   getSetHostingInstruction,
@@ -178,24 +183,37 @@ program
   .option("--owner <address>", "owner of the name (default: signer)")
   .option("--years <n>", "term in years", "1")
   .option("--referrer <tokenAccount>", "referrer's token account (gets the 10% referral share)")
+  .option("--pay-solans", "pay the fee in $SOLANS at the §8.1 discount (burned on the spot)")
   .action(async (name, o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const cfg = await getConfig(ctx);
     const { name: label, tld, hash } = nameParts(name);
-    const ix = await getRegisterNameInstructionAsync({
-      payer: ctx.signer,
-      owner: o.owner ? address(o.owner) : ctx.signer.address,
-      payerTokenAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
-      treasuryTokenAccount: cfg.data.treasuryTokenAccount,
-      stakingVault: cfg.data.stakingVault,
-      burnVault: cfg.data.burnVault,
-      referralTokenAccount: o.referrer ? address(o.referrer) : undefined,
-      paymentMint: cfg.data.paymentMint,
-      name: label,
-      tld,
-      nameHash: hash,
-      years: Number(o.years),
-    });
+    const owner = o.owner ? address(o.owner) : ctx.signer.address;
+    const ix = o.paySolans
+      ? await getRegisterWithSolansInstructionAsync({
+          payer: ctx.signer,
+          owner,
+          payerSolansAccount: await ataFor(ctx.signer.address, cfg.data.solansMint),
+          solansMint: cfg.data.solansMint,
+          name: label,
+          tld,
+          nameHash: hash,
+          years: Number(o.years),
+        })
+      : await getRegisterNameInstructionAsync({
+          payer: ctx.signer,
+          owner,
+          payerTokenAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
+          treasuryTokenAccount: cfg.data.treasuryTokenAccount,
+          stakingVault: cfg.data.stakingVault,
+          burnVault: cfg.data.burnVault,
+          referralTokenAccount: o.referrer ? address(o.referrer) : undefined,
+          paymentMint: cfg.data.paymentMint,
+          name: label,
+          tld,
+          nameHash: hash,
+          years: Number(o.years),
+        });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
     const [pda] = await findNameRecordPda({ nameHash: hash });
     console.log(`  ${label}.${tld} -> ${pda}`);
@@ -206,24 +224,35 @@ program
   .description("Renew (extend) a name")
   .option("--years <n>", "term in years", "1")
   .option("--referrer <tokenAccount>", "referrer's token account (gets the 10% referral share)")
+  .option("--pay-solans", "pay the fee in $SOLANS at the §8.1 discount (burned on the spot)")
   .action(async (name, o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const cfg = await getConfig(ctx);
     const { name: label, tld, hash } = nameParts(name);
     const [nameRecord] = await findNameRecordPda({ nameHash: hash });
-    const ix = await getRenewNameInstructionAsync({
-      payer: ctx.signer,
-      nameRecord,
-      payerTokenAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
-      treasuryTokenAccount: cfg.data.treasuryTokenAccount,
-      stakingVault: cfg.data.stakingVault,
-      burnVault: cfg.data.burnVault,
-      referralTokenAccount: o.referrer ? address(o.referrer) : undefined,
-      paymentMint: cfg.data.paymentMint,
-      name: label,
-      tld,
-      years: Number(o.years),
-    });
+    const ix = o.paySolans
+      ? await getRenewWithSolansInstructionAsync({
+          payer: ctx.signer,
+          nameRecord,
+          payerSolansAccount: await ataFor(ctx.signer.address, cfg.data.solansMint),
+          solansMint: cfg.data.solansMint,
+          name: label,
+          tld,
+          years: Number(o.years),
+        })
+      : await getRenewNameInstructionAsync({
+          payer: ctx.signer,
+          nameRecord,
+          payerTokenAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
+          treasuryTokenAccount: cfg.data.treasuryTokenAccount,
+          stakingVault: cfg.data.stakingVault,
+          burnVault: cfg.data.burnVault,
+          referralTokenAccount: o.referrer ? address(o.referrer) : undefined,
+          paymentMint: cfg.data.paymentMint,
+          name: label,
+          tld,
+          years: Number(o.years),
+        });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
 
@@ -650,6 +679,54 @@ program
       console.log(`  my stake:     ${out.myStake}`);
       console.log(`  pending:      ${out.pendingReward}`);
     }
+  });
+
+// --- $SOLANS buyback / pay-in (§8.1) ---------------------------------------
+program
+  .command("burn-init <solansMint>")
+  .description("Create the Config-owned buyback burn vault + record the $SOLANS mint (admin)")
+  .action(async (solansMint, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const cfg = await getConfig(ctx);
+    const ix = await getInitBurnPoolInstructionAsync({
+      admin: ctx.signer,
+      solansMint: address(solansMint),
+      paymentMint: cfg.data.paymentMint,
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("solans-params")
+  .description("Set the §8.1 pay-in-$SOLANS rate + discount (admin)")
+  .requiredOption("--rate <baseUnits>", "$SOLANS base units per 1 payment-mint base unit (×1e6)")
+  .requiredOption("--discount-bps <bps>", "pay-in discount, basis points (< 10000)")
+  .action(async (o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const ix = await getSetSolansParamsInstructionAsync({
+      admin: ctx.signer,
+      solansRate: BigInt(o.rate),
+      solansDiscountBps: Number(o.discountBps),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("buyback <solansAmount>")
+  .description("Burn $SOLANS and drain the burn vault in exchange (§8.1, permissionless keeper)")
+  .action(async (solansAmount, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const cfg = await getConfig(ctx);
+    const ix = await getBuybackBurnInstructionAsync({
+      keeper: ctx.signer,
+      burnVault: cfg.data.burnVault,
+      keeperPaymentAccount: await ataFor(ctx.signer.address, cfg.data.paymentMint),
+      keeperSolansAccount: await ataFor(ctx.signer.address, cfg.data.solansMint),
+      solansMint: cfg.data.solansMint,
+      paymentMint: cfg.data.paymentMint,
+      solansAmount: BigInt(solansAmount),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
 
 // --- reads -----------------------------------------------------------------

@@ -6,6 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./auction";
 export * from "./config";
 export * from "./listing";
 export * from "./nameRecord";

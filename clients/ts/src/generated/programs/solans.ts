@@ -35,6 +35,7 @@ import {
   type SelfPlanAndSendFunctions,
 } from "@solana/kit/program-client-core";
 import {
+  getAuctionCodec,
   getConfigCodec,
   getListingCodec,
   getNameRecordCodec,
@@ -42,6 +43,8 @@ import {
   getReverseRecordCodec,
   getStakeAccountCodec,
   getStakePoolCodec,
+  type Auction,
+  type AuctionArgs,
   type Config,
   type ConfigArgs,
   type Listing,
@@ -59,9 +62,11 @@ import {
 } from "../accounts";
 import {
   getAcceptOfferInstructionAsync,
+  getBidInstruction,
   getBurnNameInstruction,
   getBuybackBurnInstructionAsync,
   getBuyNameInstructionAsync,
+  getCancelAuctionInstruction,
   getCancelListingInstruction,
   getCancelOfferInstruction,
   getClaimExpiredInstructionAsync,
@@ -83,7 +88,9 @@ import {
   getSetResolverInstruction,
   getSetReverseInstructionAsync,
   getSetSolansParamsInstructionAsync,
+  getSettleAuctionInstructionAsync,
   getStakeInstructionAsync,
+  getStartAuctionInstructionAsync,
   getTokenizeNameInstructionAsync,
   getTransferNameInstruction,
   getUnstakeInstructionAsync,
@@ -92,9 +99,11 @@ import {
   getUpdateRecordInstruction,
   getWrapSubdomainInstructionAsync,
   parseAcceptOfferInstruction,
+  parseBidInstruction,
   parseBurnNameInstruction,
   parseBuybackBurnInstruction,
   parseBuyNameInstruction,
+  parseCancelAuctionInstruction,
   parseCancelListingInstruction,
   parseCancelOfferInstruction,
   parseClaimExpiredInstruction,
@@ -116,7 +125,9 @@ import {
   parseSetResolverInstruction,
   parseSetReverseInstruction,
   parseSetSolansParamsInstruction,
+  parseSettleAuctionInstruction,
   parseStakeInstruction,
+  parseStartAuctionInstruction,
   parseTokenizeNameInstruction,
   parseTransferNameInstruction,
   parseUnstakeInstruction,
@@ -125,9 +136,11 @@ import {
   parseUpdateRecordInstruction,
   parseWrapSubdomainInstruction,
   type AcceptOfferAsyncInput,
+  type BidInput,
   type BurnNameInput,
   type BuybackBurnAsyncInput,
   type BuyNameAsyncInput,
+  type CancelAuctionInput,
   type CancelListingInput,
   type CancelOfferInput,
   type ClaimExpiredAsyncInput,
@@ -139,9 +152,11 @@ import {
   type LockTransferInput,
   type MakeOfferInput,
   type ParsedAcceptOfferInstruction,
+  type ParsedBidInstruction,
   type ParsedBurnNameInstruction,
   type ParsedBuybackBurnInstruction,
   type ParsedBuyNameInstruction,
+  type ParsedCancelAuctionInstruction,
   type ParsedCancelListingInstruction,
   type ParsedCancelOfferInstruction,
   type ParsedClaimExpiredInstruction,
@@ -163,7 +178,9 @@ import {
   type ParsedSetResolverInstruction,
   type ParsedSetReverseInstruction,
   type ParsedSetSolansParamsInstruction,
+  type ParsedSettleAuctionInstruction,
   type ParsedStakeInstruction,
+  type ParsedStartAuctionInstruction,
   type ParsedTokenizeNameInstruction,
   type ParsedTransferNameInstruction,
   type ParsedUnstakeInstruction,
@@ -182,7 +199,9 @@ import {
   type SetResolverInput,
   type SetReverseAsyncInput,
   type SetSolansParamsAsyncInput,
+  type SettleAuctionAsyncInput,
   type StakeAsyncInput,
+  type StartAuctionAsyncInput,
   type TokenizeNameAsyncInput,
   type TransferNameInput,
   type UnstakeAsyncInput,
@@ -205,6 +224,7 @@ export const SOLANS_PROGRAM_ADDRESS =
   "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf" as Address<"7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf">;
 
 export enum SolansAccount {
+  Auction,
   Config,
   Listing,
   NameRecord,
@@ -218,6 +238,17 @@ export function identifySolansAccount(
   account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): SolansAccount {
   const data = "data" in account ? account.data : account;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([218, 94, 247, 242, 126, 233, 131, 81]),
+      ),
+      0,
+    )
+  ) {
+    return SolansAccount.Auction;
+  }
   if (
     containsBytes(
       data,
@@ -303,9 +334,11 @@ export function identifySolansAccount(
 
 export enum SolansInstruction {
   AcceptOffer,
+  Bid,
   BurnName,
   BuyName,
   BuybackBurn,
+  CancelAuction,
   CancelListing,
   CancelOffer,
   ClaimExpired,
@@ -327,7 +360,9 @@ export enum SolansInstruction {
   SetResolver,
   SetReverse,
   SetSolansParams,
+  SettleAuction,
   Stake,
+  StartAuction,
   TokenizeName,
   TransferName,
   Unstake,
@@ -351,6 +386,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.AcceptOffer;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([199, 56, 85, 38, 146, 243, 37, 158]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.Bid;
   }
   if (
     containsBytes(
@@ -384,6 +430,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.BuybackBurn;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([156, 43, 197, 110, 218, 105, 143, 182]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.CancelAuction;
   }
   if (
     containsBytes(
@@ -620,12 +677,34 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([246, 196, 183, 98, 222, 139, 46, 133]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.SettleAuction;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([206, 176, 202, 18, 200, 209, 179, 108]),
       ),
       0,
     )
   ) {
     return SolansInstruction.Stake;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([255, 2, 149, 136, 148, 125, 65, 195]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.StartAuction;
   }
   if (
     containsBytes(
@@ -717,6 +796,9 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.AcceptOffer;
     } & ParsedAcceptOfferInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.Bid;
+    } & ParsedBidInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.BurnName;
     } & ParsedBurnNameInstruction<TProgram>)
   | ({
@@ -725,6 +807,9 @@ export type ParsedSolansInstruction<
   | ({
       instructionType: SolansInstruction.BuybackBurn;
     } & ParsedBuybackBurnInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.CancelAuction;
+    } & ParsedCancelAuctionInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.CancelListing;
     } & ParsedCancelListingInstruction<TProgram>)
@@ -789,8 +874,14 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.SetSolansParams;
     } & ParsedSetSolansParamsInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.SettleAuction;
+    } & ParsedSettleAuctionInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.Stake;
     } & ParsedStakeInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.StartAuction;
+    } & ParsedStartAuctionInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.TokenizeName;
     } & ParsedTokenizeNameInstruction<TProgram>)
@@ -825,6 +916,13 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseAcceptOfferInstruction(instruction),
       };
     }
+    case SolansInstruction.Bid: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.Bid,
+        ...parseBidInstruction(instruction),
+      };
+    }
     case SolansInstruction.BurnName: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -844,6 +942,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.BuybackBurn,
         ...parseBuybackBurnInstruction(instruction),
+      };
+    }
+    case SolansInstruction.CancelAuction: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.CancelAuction,
+        ...parseCancelAuctionInstruction(instruction),
       };
     }
     case SolansInstruction.CancelListing: {
@@ -993,11 +1098,25 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseSetSolansParamsInstruction(instruction),
       };
     }
+    case SolansInstruction.SettleAuction: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.SettleAuction,
+        ...parseSettleAuctionInstruction(instruction),
+      };
+    }
     case SolansInstruction.Stake: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: SolansInstruction.Stake,
         ...parseStakeInstruction(instruction),
+      };
+    }
+    case SolansInstruction.StartAuction: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.StartAuction,
+        ...parseStartAuctionInstruction(instruction),
       };
     }
     case SolansInstruction.TokenizeName: {
@@ -1067,6 +1186,8 @@ export type SolansPlugin = {
 };
 
 export type SolansPluginAccounts = {
+  auction: ReturnType<typeof getAuctionCodec> &
+    SelfFetchFunctions<AuctionArgs, Auction>;
   config: ReturnType<typeof getConfigCodec> &
     SelfFetchFunctions<ConfigArgs, Config>;
   listing: ReturnType<typeof getListingCodec> &
@@ -1088,6 +1209,9 @@ export type SolansPluginInstructions = {
     input: AcceptOfferAsyncInput,
   ) => ReturnType<typeof getAcceptOfferInstructionAsync> &
     SelfPlanAndSendFunctions;
+  bid: (
+    input: BidInput,
+  ) => ReturnType<typeof getBidInstruction> & SelfPlanAndSendFunctions;
   burnName: (
     input: BurnNameInput,
   ) => ReturnType<typeof getBurnNameInstruction> & SelfPlanAndSendFunctions;
@@ -1097,6 +1221,10 @@ export type SolansPluginInstructions = {
   buybackBurn: (
     input: BuybackBurnAsyncInput,
   ) => ReturnType<typeof getBuybackBurnInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  cancelAuction: (
+    input: CancelAuctionInput,
+  ) => ReturnType<typeof getCancelAuctionInstruction> &
     SelfPlanAndSendFunctions;
   cancelListing: (
     input: CancelListingInput,
@@ -1176,9 +1304,17 @@ export type SolansPluginInstructions = {
     input: SetSolansParamsAsyncInput,
   ) => ReturnType<typeof getSetSolansParamsInstructionAsync> &
     SelfPlanAndSendFunctions;
+  settleAuction: (
+    input: SettleAuctionAsyncInput,
+  ) => ReturnType<typeof getSettleAuctionInstructionAsync> &
+    SelfPlanAndSendFunctions;
   stake: (
     input: StakeAsyncInput,
   ) => ReturnType<typeof getStakeInstructionAsync> & SelfPlanAndSendFunctions;
+  startAuction: (
+    input: StartAuctionAsyncInput,
+  ) => ReturnType<typeof getStartAuctionInstructionAsync> &
+    SelfPlanAndSendFunctions;
   tokenizeName: (
     input: TokenizeNameAsyncInput,
   ) => ReturnType<typeof getTokenizeNameInstructionAsync> &
@@ -1230,6 +1366,7 @@ export function solansProgram() {
     return extendClient(client, {
       solans: <SolansPlugin>{
         accounts: {
+          auction: addSelfFetchFunctions(client, getAuctionCodec()),
           config: addSelfFetchFunctions(client, getConfigCodec()),
           listing: addSelfFetchFunctions(client, getListingCodec()),
           nameRecord: addSelfFetchFunctions(client, getNameRecordCodec()),
@@ -1244,6 +1381,8 @@ export function solansProgram() {
               client,
               getAcceptOfferInstructionAsync(input),
             ),
+          bid: (input) =>
+            addSelfPlanAndSendFunctions(client, getBidInstruction(input)),
           burnName: (input) =>
             addSelfPlanAndSendFunctions(client, getBurnNameInstruction(input)),
           buyName: (input) =>
@@ -1255,6 +1394,11 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getBuybackBurnInstructionAsync(input),
+            ),
+          cancelAuction: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getCancelAuctionInstruction(input),
             ),
           cancelListing: (input) =>
             addSelfPlanAndSendFunctions(
@@ -1367,10 +1511,20 @@ export function solansProgram() {
               client,
               getSetSolansParamsInstructionAsync(input),
             ),
+          settleAuction: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getSettleAuctionInstructionAsync(input),
+            ),
           stake: (input) =>
             addSelfPlanAndSendFunctions(
               client,
               getStakeInstructionAsync(input),
+            ),
+          startAuction: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getStartAuctionInstructionAsync(input),
             ),
           tokenizeName: (input) =>
             addSelfPlanAndSendFunctions(

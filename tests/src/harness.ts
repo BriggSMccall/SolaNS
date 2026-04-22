@@ -10,6 +10,7 @@ import {
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
+  unwrapOption,
   type Address,
   type KeyPairSigner,
 } from "@solana/kit";
@@ -26,17 +27,21 @@ import {
 } from "@solana-program/token";
 import {
   computeSubdomainHash,
+  decodeAuction,
   decodeConfig,
   decodeNameRecord,
   decodeReverseRecord,
+  findAuction,
   findConfigPda,
   findListing,
   findNameRecordPda,
   findOffer,
   findStakePoolPda,
   getAcceptOfferInstruction,
+  getBidInstruction,
   getBuybackBurnInstructionAsync,
   getBuyNameInstruction,
+  getCancelAuctionInstruction,
   getInitBurnPoolInstructionAsync,
   getInitConfigInstructionAsync,
   getInitStakePoolInstructionAsync,
@@ -46,6 +51,8 @@ import {
   getRegisterWithSolansInstructionAsync,
   getRenewWithSolansInstructionAsync,
   getSetSolansParamsInstructionAsync,
+  getSettleAuctionInstructionAsync,
+  getStartAuctionInstructionAsync,
   getWrapSubdomainInstructionAsync,
   nameInfo,
   nameParts,
@@ -471,6 +478,108 @@ export async function buyback(
       solansMint,
       paymentMint: env.mint,
       solansAmount,
+    }),
+  ]);
+}
+
+const ataOf = async (owner: Address, mint: Address): Promise<Address> =>
+  (await findAssociatedTokenPda({ owner, mint, tokenProgram: TOKEN_PROGRAM_ADDRESS }))[0];
+
+/** Read a name's auction account, or null. */
+export function readAuction(svm: LiteSVM, auctionPda: Address) {
+  const a = svm.getAccount(auctionPda);
+  return a.exists ? decodeAuction(a).data : null;
+}
+
+/** Open an auction on `name` (signer/owner default env.payer). Returns [auctionPda, bidVault]. */
+export async function startAuction(
+  env: TestEnv,
+  name: string,
+  solansMint: Address,
+  opts?: { reserve?: bigint; increment?: bigint; durationSeconds?: bigint; owner?: KeyPairSigner },
+): Promise<[Address, Address]> {
+  const owner = opts?.owner ?? env.payer;
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(name).hash });
+  const [auction] = await findAuction(name);
+  await send(env.svm, owner, [
+    await getStartAuctionInstructionAsync({
+      owner,
+      nameRecord,
+      auction,
+      solansMint,
+      reservePrice: opts?.reserve ?? 0n,
+      minIncrement: opts?.increment ?? 1n,
+      durationSeconds: opts?.durationSeconds ?? BigInt(3 * 86_400),
+    }),
+  ]);
+  return [auction, await ataOf(auction, solansMint)];
+}
+
+/** Place a bid; resolves the prev-bidder refund account from the on-chain highest bidder. */
+export async function bid(
+  env: TestEnv,
+  name: string,
+  solansMint: Address,
+  bidder: KeyPairSigner,
+  amount: bigint,
+): Promise<void> {
+  const [auction] = await findAuction(name);
+  const a = readAuction(env.svm, auction);
+  const prev = a ? unwrapOption(a.highestBidder) : null;
+  await send(env.svm, bidder, [
+    getBidInstruction({
+      bidder,
+      auction,
+      bidderSolansAccount: await ataOf(bidder.address, solansMint),
+      prevBidderSolansAccount: prev ? await ataOf(prev, solansMint) : undefined,
+      bidVault: await ataOf(auction, solansMint),
+      solansMint,
+      amount,
+    }),
+  ]);
+}
+
+/** Settle an auction (permissionless; signer defaults env.payer). */
+export async function settleAuction(
+  env: TestEnv,
+  name: string,
+  solansMint: Address,
+  settler?: KeyPairSigner,
+): Promise<void> {
+  const signer = settler ?? env.payer;
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(name).hash });
+  const [auction] = await findAuction(name);
+  const a = readAuction(env.svm, auction);
+  const winner = a ? unwrapOption(a.highestBidder) : null;
+  await send(env.svm, signer, [
+    await getSettleAuctionInstructionAsync({
+      settler: signer,
+      seller: a!.seller,
+      sellerSolansAccount: winner ? await ataOf(a!.seller, solansMint) : undefined,
+      nameRecord,
+      auction,
+      bidVault: await ataOf(auction, solansMint),
+      solansMint,
+    }),
+  ]);
+}
+
+/** Cancel an auction before any bid (seller defaults env.payer). */
+export async function cancelAuction(
+  env: TestEnv,
+  name: string,
+  solansMint: Address,
+  seller?: KeyPairSigner,
+): Promise<void> {
+  const signer = seller ?? env.payer;
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(name).hash });
+  const [auction] = await findAuction(name);
+  await send(env.svm, signer, [
+    getCancelAuctionInstruction({
+      seller: signer,
+      nameRecord,
+      auction,
+      bidVault: await ataOf(auction, solansMint),
     }),
   ]);
 }

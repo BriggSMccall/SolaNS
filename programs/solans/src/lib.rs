@@ -223,6 +223,27 @@ pub mod solans {
         instructions::buyback_burn::handler(ctx, solans_amount)
     }
 
+    pub fn start_auction(
+        ctx: Context<StartAuction>,
+        reserve_price: u64,
+        min_increment: u64,
+        duration_seconds: i64,
+    ) -> Result<()> {
+        instructions::start_auction::handler(ctx, reserve_price, min_increment, duration_seconds)
+    }
+
+    pub fn bid(ctx: Context<Bid>, amount: u64) -> Result<()> {
+        instructions::bid::handler(ctx, amount)
+    }
+
+    pub fn settle_auction(ctx: Context<SettleAuction>) -> Result<()> {
+        instructions::settle_auction::handler(ctx)
+    }
+
+    pub fn cancel_auction(ctx: Context<CancelAuction>) -> Result<()> {
+        instructions::cancel_auction::handler(ctx)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_config(
         ctx: Context<UpdateConfig>,

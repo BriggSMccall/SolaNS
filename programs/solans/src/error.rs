@@ -78,4 +78,16 @@ pub enum SolansError {
     InsufficientBurnVault,
     #[msg("Discount basis points must be less than 10000")]
     InvalidDiscount,
+    #[msg("Auction has ended")]
+    AuctionEnded,
+    #[msg("Auction is still active")]
+    AuctionActive,
+    #[msg("Bid is below the reserve or the minimum increment")]
+    BidTooLow,
+    #[msg("Auction already has bids and cannot be cancelled")]
+    AuctionHasBids,
+    #[msg("Seller cannot bid on their own auction")]
+    SelfBid,
+    #[msg("Refund account does not belong to the current highest bidder")]
+    WrongRefundAccount,
 }

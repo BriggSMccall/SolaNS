@@ -90,8 +90,24 @@ export const SOLANS_ERROR__SOLANS_NOT_CONFIGURED = 0x1793; // 6035
 export const SOLANS_ERROR__INSUFFICIENT_BURN_VAULT = 0x1794; // 6036
 /** InvalidDiscount: Discount basis points must be less than 10000 */
 export const SOLANS_ERROR__INVALID_DISCOUNT = 0x1795; // 6037
+/** AuctionEnded: Auction has ended */
+export const SOLANS_ERROR__AUCTION_ENDED = 0x1796; // 6038
+/** AuctionActive: Auction is still active */
+export const SOLANS_ERROR__AUCTION_ACTIVE = 0x1797; // 6039
+/** BidTooLow: Bid is below the reserve or the minimum increment */
+export const SOLANS_ERROR__BID_TOO_LOW = 0x1798; // 6040
+/** AuctionHasBids: Auction already has bids and cannot be cancelled */
+export const SOLANS_ERROR__AUCTION_HAS_BIDS = 0x1799; // 6041
+/** SelfBid: Seller cannot bid on their own auction */
+export const SOLANS_ERROR__SELF_BID = 0x179a; // 6042
+/** WrongRefundAccount: Refund account does not belong to the current highest bidder */
+export const SOLANS_ERROR__WRONG_REFUND_ACCOUNT = 0x179b; // 6043
 
 export type SolansError =
+  | typeof SOLANS_ERROR__AUCTION_ACTIVE
+  | typeof SOLANS_ERROR__AUCTION_ENDED
+  | typeof SOLANS_ERROR__AUCTION_HAS_BIDS
+  | typeof SOLANS_ERROR__BID_TOO_LOW
   | typeof SOLANS_ERROR__INSUFFICIENT_BURN_VAULT
   | typeof SOLANS_ERROR__INSUFFICIENT_STAKE
   | typeof SOLANS_ERROR__INVALID_DISCOUNT
@@ -122,6 +138,7 @@ export type SolansError =
   | typeof SOLANS_ERROR__PRICE_MISMATCH
   | typeof SOLANS_ERROR__RECORD_NOT_FOUND
   | typeof SOLANS_ERROR__RECORD_TOO_LONG
+  | typeof SOLANS_ERROR__SELF_BID
   | typeof SOLANS_ERROR__SELF_PURCHASE
   | typeof SOLANS_ERROR__SOLANS_NOT_CONFIGURED
   | typeof SOLANS_ERROR__STAKE_MINT_MISMATCH
@@ -129,11 +146,16 @@ export type SolansError =
   | typeof SOLANS_ERROR__TOKENIZED
   | typeof SOLANS_ERROR__TOO_DEEP
   | typeof SOLANS_ERROR__TOO_MANY_RECORDS
-  | typeof SOLANS_ERROR__TRANSFER_LOCKED;
+  | typeof SOLANS_ERROR__TRANSFER_LOCKED
+  | typeof SOLANS_ERROR__WRONG_REFUND_ACCOUNT;
 
 let solansErrorMessages: Record<SolansError, string> | undefined;
 if (process.env["NODE_ENV"] !== "production") {
   solansErrorMessages = {
+    [SOLANS_ERROR__AUCTION_ACTIVE]: `Auction is still active`,
+    [SOLANS_ERROR__AUCTION_ENDED]: `Auction has ended`,
+    [SOLANS_ERROR__AUCTION_HAS_BIDS]: `Auction already has bids and cannot be cancelled`,
+    [SOLANS_ERROR__BID_TOO_LOW]: `Bid is below the reserve or the minimum increment`,
     [SOLANS_ERROR__INSUFFICIENT_BURN_VAULT]: `Burn vault has insufficient balance for this buyback`,
     [SOLANS_ERROR__INSUFFICIENT_STAKE]: `Insufficient staked balance`,
     [SOLANS_ERROR__INVALID_DISCOUNT]: `Discount basis points must be less than 10000`,
@@ -164,6 +186,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__PRICE_MISMATCH]: `Listing price does not match the expected price`,
     [SOLANS_ERROR__RECORD_NOT_FOUND]: `Record key not found`,
     [SOLANS_ERROR__RECORD_TOO_LONG]: `Record key or value exceeds the maximum length`,
+    [SOLANS_ERROR__SELF_BID]: `Seller cannot bid on their own auction`,
     [SOLANS_ERROR__SELF_PURCHASE]: `Buyer and seller must differ`,
     [SOLANS_ERROR__SOLANS_NOT_CONFIGURED]: `Pay-in-$SOLANS is not configured (set the mint, rate, and discount)`,
     [SOLANS_ERROR__STAKE_MINT_MISMATCH]: `Token account mint does not match the staking pool`,
@@ -172,6 +195,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__TOO_DEEP]: `Subdomain depth exceeds the maximum`,
     [SOLANS_ERROR__TOO_MANY_RECORDS]: `Record store is full`,
     [SOLANS_ERROR__TRANSFER_LOCKED]: `Name transfer is locked`,
+    [SOLANS_ERROR__WRONG_REFUND_ACCOUNT]: `Refund account does not belong to the current highest bidder`,
   };
 }
 

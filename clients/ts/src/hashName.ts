@@ -5,6 +5,7 @@ import { DEFAULT_TLD, parseName, parsePath, type Tld } from "./normalize";
 
 const LISTING_SEED = new TextEncoder().encode("listing");
 const OFFER_SEED = new TextEncoder().encode("offer");
+const AUCTION_SEED = new TextEncoder().encode("auction");
 
 /**
  * Canonical name hash: `sha256(name + "." + tld)`.
@@ -92,5 +93,13 @@ export async function findOffer(input: string, buyer: Address, tldOverride?: str
   return getProgramDerivedAddress({
     programAddress: SOLANS_PROGRAM_ADDRESS,
     seeds: [OFFER_SEED, nameHashFor(input, tldOverride), getAddressEncoder().encode(buyer)],
+  });
+}
+
+/** Derive the auction PDA for a raw name/path (`[b"auction", name_hash]`). */
+export async function findAuction(input: string, tldOverride?: string) {
+  return getProgramDerivedAddress({
+    programAddress: SOLANS_PROGRAM_ADDRESS,
+    seeds: [AUCTION_SEED, nameHashFor(input, tldOverride)],
   });
 }

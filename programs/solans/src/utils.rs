@@ -2,7 +2,9 @@ use crate::constants::*;
 use crate::error::SolansError;
 use crate::state::{Config, NameRecord};
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{self, Burn, Mint, TokenAccount, TokenInterface, TransferChecked};
+use anchor_spl::token_interface::{
+    self, Burn, CloseAccount, Mint, TokenAccount, TokenInterface, TransferChecked,
+};
 use solana_sha256_hasher::hashv;
 
 /// Whether `signer` may perform record-level operations on `nr`.
@@ -193,6 +195,53 @@ pub fn burn_tokens<'info>(
         authority: authority.to_account_info(),
     };
     token_interface::burn(CpiContext::new(token_program.key(), cpi_accounts), amount)?;
+    Ok(())
+}
+
+/// Like [`burn_tokens`] but signed by a **PDA** `authority` (`signer_seeds`), e.g.
+/// burning the auction marketplace fee out of a pool-owned vault (no-op on 0).
+pub fn burn_tokens_signed<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    mint: &InterfaceAccount<'info, Mint>,
+    from: &InterfaceAccount<'info, TokenAccount>,
+    authority: &AccountInfo<'info>,
+    signer_seeds: &[&[&[u8]]],
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
+    let cpi_accounts = Burn {
+        mint: mint.to_account_info(),
+        from: from.to_account_info(),
+        authority: authority.clone(),
+    };
+    token_interface::burn(
+        CpiContext::new_with_signer(token_program.key(), cpi_accounts, signer_seeds),
+        amount,
+    )?;
+    Ok(())
+}
+
+/// Close a **PDA-owned** token account, sending its rent lamports to `destination`.
+/// The account must be empty (drain it first). The PDA `authority` signs.
+pub fn close_token_account<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    account: &InterfaceAccount<'info, TokenAccount>,
+    destination: &AccountInfo<'info>,
+    authority: &AccountInfo<'info>,
+    signer_seeds: &[&[&[u8]]],
+) -> Result<()> {
+    let cpi_accounts = CloseAccount {
+        account: account.to_account_info(),
+        destination: destination.clone(),
+        authority: authority.clone(),
+    };
+    token_interface::close_account(CpiContext::new_with_signer(
+        token_program.key(),
+        cpi_accounts,
+        signer_seeds,
+    ))?;
     Ok(())
 }
 

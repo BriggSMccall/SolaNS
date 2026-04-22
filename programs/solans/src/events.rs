@@ -71,3 +71,38 @@ pub struct BuybackBurn {
     pub solans_burned: u64,
     pub usdc_reimbursed: u64,
 }
+
+/// An English `$SOLANS` auction opened on a name (§9.1).
+#[event]
+pub struct AuctionStarted {
+    pub name_hash: [u8; 32],
+    pub seller: Pubkey,
+    pub reserve_price: u64,
+    pub end_time: i64,
+}
+
+/// A new highest bid (the previous bidder was refunded).
+#[event]
+pub struct BidPlaced {
+    pub name_hash: [u8; 32],
+    pub bidder: Pubkey,
+    pub amount: u64,
+    pub end_time: i64,
+}
+
+/// An auction settled: the name moved to the winner, the seller was paid, the fee burned.
+#[event]
+pub struct AuctionSettled {
+    pub name_hash: [u8; 32],
+    pub seller: Pubkey,
+    pub winner: Option<Pubkey>,
+    pub amount: u64,
+    pub fee: u64,
+}
+
+/// An auction cancelled by the seller before any bid.
+#[event]
+pub struct AuctionCancelled {
+    pub name_hash: [u8; 32],
+    pub seller: Pubkey,
+}

@@ -7,9 +7,11 @@
  */
 
 export * from "./acceptOffer";
+export * from "./bid";
 export * from "./burnName";
 export * from "./buybackBurn";
 export * from "./buyName";
+export * from "./cancelAuction";
 export * from "./cancelListing";
 export * from "./cancelOffer";
 export * from "./claimExpired";
@@ -31,7 +33,9 @@ export * from "./setHosting";
 export * from "./setResolver";
 export * from "./setReverse";
 export * from "./setSolansParams";
+export * from "./settleAuction";
 export * from "./stake";
+export * from "./startAuction";
 export * from "./tokenizeName";
 export * from "./transferName";
 export * from "./unstake";

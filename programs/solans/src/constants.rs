@@ -8,6 +8,11 @@ pub const LISTING_SEED: &[u8] = b"listing";
 pub const OFFER_SEED: &[u8] = b"offer";
 pub const STAKE_POOL_SEED: &[u8] = b"stake_pool";
 pub const STAKE_SEED: &[u8] = b"stake";
+pub const AUCTION_SEED: &[u8] = b"auction";
+
+// Anti-snipe window: a bid within this many seconds of `end_time` extends the
+// auction to `now + AUCTION_EXTENSION_SECONDS` (§9.1 "5-min auto-extend").
+pub const AUCTION_EXTENSION_SECONDS: i64 = 300;
 
 // Marketplace fee math: basis-point denominator + a hard cap on the fee.
 pub const BPS_DENOMINATOR: u64 = 10_000;

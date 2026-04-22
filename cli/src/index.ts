@@ -2,10 +2,15 @@ import { Command } from "commander";
 import { address, generateKeyPairSigner, unwrapOption } from "@solana/kit";
 import {
   computeSubdomainHash,
+  findAuction,
   findListing,
   findNameRecordPda,
   findOffer,
   getAcceptOfferInstruction,
+  getBidInstruction,
+  getCancelAuctionInstruction,
+  getSettleAuctionInstructionAsync,
+  getStartAuctionInstructionAsync,
   getBurnNameInstruction,
   getBuybackBurnInstructionAsync,
   getBuyNameInstruction,
@@ -578,6 +583,124 @@ program
     const [offer] = await findOffer(name, bidder);
     const ix = getCancelOfferInstruction({ canceller: ctx.signer, buyer: bidder, nameRecord, offer });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+// --- auctions (English, $SOLANS bids, §9.1) --------------------------------
+program
+  .command("auction-start <name>")
+  .description("Open an English $SOLANS auction on a name (owner)")
+  .requiredOption("--reserve <baseUnits>", "minimum first bid ($SOLANS base units)")
+  .option("--increment <baseUnits>", "minimum raise over the highest bid", "1")
+  .option("--days <n>", "auction duration in days", "3")
+  .action(async (name, o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const cfg = await getConfig(ctx);
+    const [nameRecord] = await nameRecordPda(name);
+    const [auction] = await findAuction(name);
+    const ix = await getStartAuctionInstructionAsync({
+      owner: ctx.signer,
+      nameRecord,
+      auction,
+      solansMint: cfg.data.solansMint,
+      reservePrice: BigInt(o.reserve),
+      minIncrement: BigInt(o.increment),
+      durationSeconds: BigInt(Math.round(Number(o.days) * 86_400)),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(`  auction open for ${name} (reserve ${o.reserve} $SOLANS)`);
+  });
+
+program
+  .command("bid <name> <amount>")
+  .description("Bid on a live auction ($SOLANS base units; outbids refund the prior bidder)")
+  .action(async (name, amount, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const cfg = await getConfig(ctx);
+    const solansMint = cfg.data.solansMint;
+    const [auction] = await findAuction(name);
+    const a = await SolansClient.fromRpc(ctx.rpc).getAuction(name);
+    if (!a) throw new Error(`no auction for ${name}`);
+    const prev = unwrapOption(a.highestBidder);
+    const ix = getBidInstruction({
+      bidder: ctx.signer,
+      auction,
+      bidderSolansAccount: await ataFor(ctx.signer.address, solansMint),
+      prevBidderSolansAccount: prev ? await ataFor(prev, solansMint) : undefined,
+      bidVault: await ataFor(auction, solansMint),
+      solansMint,
+      amount: BigInt(amount),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("auction-settle <name>")
+  .description("Settle a finished auction (anyone): transfer the name, pay the seller, burn the fee")
+  .action(async (name, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const cfg = await getConfig(ctx);
+    const solansMint = cfg.data.solansMint;
+    const [nameRecord] = await nameRecordPda(name);
+    const [auction] = await findAuction(name);
+    const a = await SolansClient.fromRpc(ctx.rpc).getAuction(name);
+    if (!a) throw new Error(`no auction for ${name}`);
+    const winner = unwrapOption(a.highestBidder);
+    const ix = await getSettleAuctionInstructionAsync({
+      settler: ctx.signer,
+      seller: a.seller,
+      sellerSolansAccount: winner ? await ataFor(a.seller, solansMint) : undefined,
+      nameRecord,
+      auction,
+      bidVault: await ataFor(auction, solansMint),
+      solansMint,
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(winner ? `  ${name} -> ${winner}` : `  ${name} unsold (no bids)`);
+  });
+
+program
+  .command("auction-cancel <name>")
+  .description("Cancel an auction before any bid (seller)")
+  .action(async (name, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const cfg = await getConfig(ctx);
+    const [nameRecord] = await nameRecordPda(name);
+    const [auction] = await findAuction(name);
+    const ix = getCancelAuctionInstruction({
+      seller: ctx.signer,
+      nameRecord,
+      auction,
+      bidVault: await ataFor(auction, cfg.data.solansMint),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("auction-info <name>")
+  .description("Show a name's auction (seller, highest bid, end time)")
+  .action(async (name, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const a = await SolansClient.fromRpc(ctx.rpc).getAuction(name);
+    if (!a) {
+      console.log("no auction");
+      return;
+    }
+    const bidder = unwrapOption(a.highestBidder);
+    const out = {
+      seller: a.seller,
+      highestBidder: bidder ?? null,
+      highestBid: a.highestBid.toString(),
+      reservePrice: a.reservePrice.toString(),
+      minIncrement: a.minIncrement.toString(),
+      endTime: a.endTime.toString(),
+    };
+    if (ctx.opts.json) console.log(JSON.stringify(out, null, 2));
+    else {
+      console.log(`  seller:    ${out.seller}`);
+      console.log(`  highest:   ${out.highestBid} by ${out.highestBidder ?? "(none)"}`);
+      console.log(`  reserve:   ${out.reservePrice} (+${out.minIncrement} increment)`);
+      console.log(`  ends at:   ${out.endTime}`);
+    }
   });
 
 // --- staking ($SOLANS) -----------------------------------------------------

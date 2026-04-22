@@ -1,5 +1,6 @@
 import { fetchEncodedAccount, unwrapOption, type Address, type MaybeEncodedAccount } from "@solana/kit";
 import {
+  decodeAuction,
   decodeConfig,
   decodeListing,
   decodeNameRecord,
@@ -7,6 +8,7 @@ import {
   decodeReverseRecord,
   decodeStakeAccount,
   decodeStakePool,
+  findAuction,
   findConfigPda,
   findListing,
   findNameRecord,
@@ -15,6 +17,7 @@ import {
   findReverseRecordPda,
   findStakeAccountPda,
   findStakePoolPda,
+  type Auction,
   type Config,
   type Listing,
   type NameRecord,
@@ -92,6 +95,13 @@ export class SolansClient {
     const [pda] = await findOffer(name, buyer);
     const acct = await this.fetchAccount(pda);
     return acct.exists ? decodeOffer(acct).data : null;
+  }
+
+  /** The active auction for a name, or null if none. */
+  async getAuction(name: string): Promise<Auction | null> {
+    const [pda] = await findAuction(name);
+    const acct = await this.fetchAccount(pda);
+    return acct.exists ? decodeAuction(acct).data : null;
   }
 
   /** The registry config singleton, or null if not initialized. */

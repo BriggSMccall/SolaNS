@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 #
-# Localnet end-to-end smoke for the NFT layer (M2): boot a validator with the
+# Localnet end-to-end smoke for the NFT layer (M2/§6.1): boot a validator with the
 # SOLANS + Metaplex Token Metadata programs preloaded, create a payment
-# mint/treasury, init-config, then exercise register -> tokenize -> redeem via
-# the CLI, asserting the NFT shows up (spl-token) and `info` reflects it.
+# mint/treasury, init-config, then show that `register` mints the ownership NFT by
+# default, and exercise redeem -> re-tokenize via the CLI, asserting the NFT shows
+# up (spl-token) and `info` reflects it.
 #
 # Preloading both programs at genesis (`--bpf-program`) sidesteps the devnet
 # SBPFv3 deploy gate; the local validator enables all features, so the current
@@ -39,32 +40,34 @@ solana cluster-version >/dev/null 2>&1 || { echo "validator did not come up"; ex
 solana airdrop 100 >/dev/null
 echo "    balance: $(solana balance)"
 
-echo "==> Creating payment mint (6 dp), funded payer ATA, treasury"
-MINTKP="$(mktemp)"; TREASKP="$(mktemp)"
+echo "==> Creating payment mint (6 dp), funded payer ATA, distinct treasury/staking/burn vaults"
+mk_vault() { local kp; kp="$(mktemp)"; solana-keygen new -s --no-bip39-passphrase --force -o "$kp" >/dev/null 2>&1; spl-token create-account "$1" "$kp" >/dev/null 2>&1; solana address -k "$kp"; }
+MINTKP="$(mktemp)"
 solana-keygen new -s --no-bip39-passphrase --force -o "$MINTKP" >/dev/null
-solana-keygen new -s --no-bip39-passphrase --force -o "$TREASKP" >/dev/null
-MINT="$(solana address -k "$MINTKP")"; TREASURY="$(solana address -k "$TREASKP")"
+MINT="$(solana address -k "$MINTKP")"
 spl-token create-token "$MINTKP" --decimals 6 >/dev/null
 spl-token create-account "$MINT" >/dev/null
 spl-token mint "$MINT" 1000000 >/dev/null
-spl-token create-account "$MINT" "$TREASKP" >/dev/null
+TREASURY="$(mk_vault "$MINT")"; STAKING="$(mk_vault "$MINT")"; BURN="$(mk_vault "$MINT")"
 echo "    mint=$MINT treasury=$TREASURY"
 
-echo "==> init-config + register"
-"${CLI[@]}" init-config --mint "$MINT" --treasury "$TREASURY"
+echo "==> init-config + register (mints the ownership NFT by default, §6.1)"
+"${CLI[@]}" init-config --mint "$MINT" --treasury "$TREASURY" --staking-vault "$STAKING" --burn-vault "$BURN"
 "${CLI[@]}" register alpha
-
-echo "==> tokenize"
-"${CLI[@]}" tokenize alpha
 echo "--- info (expect 'tokenized') ---"
 "${CLI[@]}" info alpha
 echo "--- spl-token accounts (expect an NFT with balance 1) ---"
 spl-token accounts
 
-echo "==> redeem"
+echo "==> redeem (burn the NFT, back to PDA-native)"
 "${CLI[@]}" redeem alpha
 echo "--- info (expect NO 'tokenized' line) ---"
 "${CLI[@]}" info alpha
 
+echo "==> re-tokenize (the explicit instruction still works)"
+"${CLI[@]}" tokenize alpha
+echo "--- info (expect 'tokenized' again) ---"
+"${CLI[@]}" info alpha
+
 echo
-echo "✅ NFT smoke complete: register -> tokenize -> redeem round-trip OK"
+echo "✅ NFT smoke complete: register-mints-NFT -> redeem -> re-tokenize round-trip OK"

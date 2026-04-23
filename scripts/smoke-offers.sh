@@ -43,11 +43,19 @@ spl-token create-token "$MINTKP" --decimals 6 >/dev/null
 spl-token create-account "$MINT" >/dev/null
 spl-token mint "$MINT" 1000000 >/dev/null
 spl-token create-account "$MINT" "$TREASKP" >/dev/null
+# Distinct staking + burn vaults so register_name's mutable token accounts don't
+# collide (ConstraintDuplicateMutableAccount); both default to treasury otherwise.
+STAKINGKP="$(mktemp)"; BURNKP="$(mktemp)"
+solana-keygen new -s --no-bip39-passphrase --force -o "$STAKINGKP" >/dev/null
+solana-keygen new -s --no-bip39-passphrase --force -o "$BURNKP" >/dev/null
+spl-token create-account "$MINT" "$STAKINGKP" >/dev/null
+spl-token create-account "$MINT" "$BURNKP" >/dev/null
+STAKING="$(solana address -k "$STAKINGKP")"; BURN="$(solana address -k "$BURNKP")"
 echo "    mint=$MINT  sol_treasury=$SOL_TREASURY  bidder=$BIDDER"
 
 echo "==> init-config (2% SOL marketplace fee) + register"
-"${SELLER_CLI[@]}" init-config --mint "$MINT" --treasury "$TREASURY" --sol-treasury "$SOL_TREASURY" --fee-bps 200
-"${SELLER_CLI[@]}" register alpha
+"${SELLER_CLI[@]}" init-config --mint "$MINT" --treasury "$TREASURY" --staking-vault "$STAKING" --burn-vault "$BURN" --sol-treasury "$SOL_TREASURY" --fee-bps 200
+"${SELLER_CLI[@]}" register alpha --no-nft
 
 echo "==> fund the bidder; bidder makes a 3 SOL offer"
 solana transfer "$BIDDER" 10 --allow-unfunded-recipient >/dev/null

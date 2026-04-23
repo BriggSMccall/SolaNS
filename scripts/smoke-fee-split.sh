@@ -59,7 +59,7 @@ echo "==> init-config (60/25/10/5 split)"
   --price5 1000000
 
 echo "==> register alpha --referrer (fee = 1.0 token = price_5plus)"
-"${CLI[@]}" register alpha --referrer "$REFERRAL"
+"${CLI[@]}" register alpha --referrer "$REFERRAL" --no-nft
 
 echo "--- fee split (expect 0.6 / 0.25 / 0.1 / 0.05) ---"
 printf "  treasury : %s\n" "$(spl-token balance --address "$TREASURY")"

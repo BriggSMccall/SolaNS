@@ -12,7 +12,7 @@ use anchor_lang::prelude::*;
 pub struct ReverseRecord {
     /// The wallet this reverse record belongs to.
     pub owner: Pubkey,
-    /// sha256 hash of the name it points to (matches `NameRecord.name_hash`).
+    /// keccak256 hash of the name it points to (matches `NameRecord.name_hash`).
     pub name_hash: [u8; 32],
     /// Human-readable name label (e.g. "alex").
     #[max_len(NAME_MAX_LEN)]

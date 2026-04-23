@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { keccak_256 } from "@noble/hashes/sha3";
 import { getAddressEncoder, getProgramDerivedAddress, type Address } from "@solana/kit";
 import { findNameRecordPda, SOLANS_PROGRAM_ADDRESS } from "./generated";
 import { DEFAULT_TLD, parseName, parsePath, type Tld } from "./normalize";
@@ -8,20 +8,19 @@ const OFFER_SEED = new TextEncoder().encode("offer");
 const AUCTION_SEED = new TextEncoder().encode("auction");
 
 /**
- * Canonical name hash: `sha256(name + "." + tld)`.
+ * Canonical name hash: `keccak256(name + "." + tld)` (spec §2.1, ENS namehash).
  *
  * MUST match `compute_name_hash` in `programs/solans/src/utils.rs` byte-for-byte
- * (sha256 over the same UTF-8 bytes); the PDA-parity test guards this. `name`
+ * (keccak256 over the same UTF-8 bytes); the PDA-parity test guards this. `name`
  * must already be a normalized label and `tld` an allowed TLD — use
  * {@link nameParts} / {@link nameHashFor} for raw input.
  */
 export function computeNameHash(name: string, tld: string = DEFAULT_TLD): Uint8Array {
-  const data = new TextEncoder().encode(`${name}.${tld}`);
-  return new Uint8Array(createHash("sha256").update(data).digest());
+  return keccak_256(new TextEncoder().encode(`${name}.${tld}`));
 }
 
 /**
- * Canonical subdomain hash: `sha256(0x00 || parentHash || label)`.
+ * Canonical subdomain hash: `keccak256(0x00 || parentHash || label)`.
  *
  * MUST match `compute_subdomain_hash` in `programs/solans/src/utils.rs`. The
  * `0x00` separator keeps subdomain hashes disjoint from top-level names.
@@ -32,7 +31,7 @@ export function computeSubdomainHash(parentHash: Uint8Array, label: string): Uin
   buf[0] = 0;
   buf.set(parentHash, 1);
   buf.set(labelBytes, 1 + parentHash.length);
-  return new Uint8Array(createHash("sha256").update(buf).digest());
+  return keccak_256(buf);
 }
 
 export interface NameInfo {

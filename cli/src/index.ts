@@ -184,17 +184,19 @@ program
 // --- register / renew / claim ----------------------------------------------
 program
   .command("register <name>")
-  .description("Register a name (pays the tiered fee, split 60/25/10/5 per §8.2)")
+  .description("Register a name as a tradeable NFT (pays the tiered fee, split 60/25/10/5 per §8.2)")
   .option("--owner <address>", "owner of the name (default: signer)")
   .option("--years <n>", "term in years", "1")
   .option("--referrer <tokenAccount>", "referrer's token account (gets the 10% referral share)")
   .option("--pay-solans", "pay the fee in $SOLANS at the §8.1 discount (burned on the spot)")
+  .option("--no-nft", "skip minting the ownership NFT (register PDA-native only)")
   .action(async (name, o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const cfg = await getConfig(ctx);
     const { name: label, tld, hash } = nameParts(name);
     const owner = o.owner ? address(o.owner) : ctx.signer.address;
-    const ix = o.paySolans
+    const [nameRecord] = await findNameRecordPda({ nameHash: hash });
+    const registerIx = o.paySolans
       ? await getRegisterWithSolansInstructionAsync({
           payer: ctx.signer,
           owner,
@@ -219,9 +221,17 @@ program
           nameHash: hash,
           years: Number(o.years),
         });
-    reportSig(ctx, await sendInstructions(ctx, [ix]));
-    const [pda] = await findNameRecordPda({ nameHash: hash });
-    console.log(`  ${label}.${tld} -> ${pda}`);
+    // §6.1: a name IS an NFT. By default mint the 1-of-1 in the same tx, so the
+    // registrant gets a tradeable certificate. Only possible when registering to
+    // self (tokenize is owner-gated); `--no-nft` or `--owner <other>` opts out.
+    const mintNft = o.nft !== false && owner === ctx.signer.address;
+    const ixs: unknown[] = [registerIx];
+    if (mintNft) {
+      const mint = await generateKeyPairSigner();
+      ixs.push(await getTokenizeNameInstructionAsync({ owner: ctx.signer, nameRecord, mint, name: label }));
+    }
+    reportSig(ctx, await sendInstructions(ctx, ixs));
+    console.log(`  ${label}.${tld} -> ${nameRecord}${mintNft ? " (NFT minted)" : ""}`);
   });
 
 program

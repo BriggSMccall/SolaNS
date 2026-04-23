@@ -49,6 +49,7 @@ import {
   getMakeOfferInstruction,
   getRegisterNameInstructionAsync,
   getRegisterWithSolansInstructionAsync,
+  getTokenizeNameInstructionAsync,
   getRenewWithSolansInstructionAsync,
   getSetSolansParamsInstructionAsync,
   getSettleAuctionInstructionAsync,
@@ -233,6 +234,36 @@ export async function registerName(
   await send(env.svm, payer, [ix]);
   const [pda] = await findNameRecordPda({ nameHash: hash });
   return pda;
+}
+
+/** Register `name` AND mint its 1-of-1 NFT in one tx — the §6.1 default flow the
+ * CLI `register` uses. Returns `[nameRecordPda, mint]`. */
+export async function registerAsNft(
+  env: TestEnv,
+  name: string,
+  opts?: { years?: number; payer?: KeyPairSigner },
+): Promise<[Address, KeyPairSigner]> {
+  const payer = opts?.payer ?? env.payer;
+  const { name: label, tld, hash } = nameParts(name);
+  const [pda] = await findNameRecordPda({ nameHash: hash });
+  const mint = await generateKeyPairSigner();
+  await send(env.svm, payer, [
+    await getRegisterNameInstructionAsync({
+      payer,
+      owner: payer.address,
+      payerTokenAccount: env.payerAta,
+      treasuryTokenAccount: env.treasury,
+      stakingVault: env.stakingVault,
+      burnVault: env.burnVault,
+      paymentMint: env.mint,
+      name: label,
+      tld,
+      nameHash: hash,
+      years: opts?.years ?? 1,
+    }),
+    await getTokenizeNameInstructionAsync({ owner: payer, nameRecord: pda, mint, name: label }),
+  ]);
+  return [pda, mint];
 }
 
 /** Create a subdomain `<label>.<parentInput>` (signer/owner default to env.payer). */

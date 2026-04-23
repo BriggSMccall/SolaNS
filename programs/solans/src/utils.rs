@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{
     self, Burn, CloseAccount, Mint, TokenAccount, TokenInterface, TransferChecked,
 };
-use solana_sha256_hasher::hashv;
+use solana_keccak_hasher::hashv;
 
 /// Whether `signer` may perform record-level operations on `nr`.
 ///
@@ -68,14 +68,15 @@ pub fn validate_tld(tld: &str) -> Result<()> {
     Ok(())
 }
 
-/// Canonical name hash: `sha256(name + "." + tld)`. Computed on-chain so the
-/// program never trusts a client-supplied hash. The client mirrors this exactly
-/// (`@noble/hashes/sha256` over the same UTF-8 bytes).
+/// Canonical name hash: `keccak256(name + "." + tld)` (spec §2.1, the ENS
+/// namehash convention). Computed on-chain so the program never trusts a
+/// client-supplied hash. The client mirrors this exactly (`@noble/hashes` keccak_256
+/// over the same UTF-8 bytes).
 pub fn compute_name_hash(name: &str, tld: &str) -> [u8; 32] {
     hashv(&[name.as_bytes(), b".", tld.as_bytes()]).to_bytes()
 }
 
-/// Canonical subdomain hash: `sha256(0x00 || parent_hash || label)`. Recursive on
+/// Canonical subdomain hash: `keccak256(0x00 || parent_hash || label)`. Recursive on
 /// the parent's hash so the program never needs the parent's full string. The
 /// `0x00` separator makes this preimage space disjoint from top-level names
 /// (whose preimages always start with `[a-z0-9]`), so PDAs can never collide

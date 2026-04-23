@@ -23,6 +23,7 @@ import {
   MPL_PROGRAM_ADDRESS,
   readName,
   readTokenAmount,
+  registerAsNft,
   registerName,
   send,
   sendExpectingFailure,
@@ -148,5 +149,20 @@ describe("tokenize_name / redeem_name (NFT layer)", () => {
     ]);
     expect(unwrapOption(readName(env.svm, pda)!.nftMint)).toBe(m2.address);
     expect(readTokenAmount(env.svm, await ataOf(buyer.address, m2.address))).toBe(1n);
+  });
+});
+
+// §6.1: a name IS an NFT. The default register flow mints the 1-of-1 in the same
+// transaction (the CLI does this unless `--no-nft`), so a registrant gets a
+// tradeable ownership certificate without a second step.
+describe("default register flow mints the NFT (§6.1)", () => {
+  it("register + tokenize in one tx: the name is born tokenized and the owner holds it", async () => {
+    const env = await setupEnv();
+    const [pda, mint] = await registerAsNft(env, "alpha");
+
+    const rec = readName(env.svm, pda)!;
+    expect(unwrapOption(rec.nftMint)).toBe(mint.address); // born tokenized
+    expect(rec.owner).toBe(env.payer.address);
+    expect(readTokenAmount(env.svm, await ataOf(env.payer.address, mint.address))).toBe(1n); // owner holds the NFT
   });
 });

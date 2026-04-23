@@ -57,7 +57,7 @@ echo "==> stake-init (creates the pool, repoints the staker fee share)"
 
 echo "==> stake 5 \$SOLANS, then drive a registration fee, then claim"
 "${CLI[@]}" stake 5000000
-"${CLI[@]}" register alpha           # 25% of the 1-token fee -> pool reward vault
+"${CLI[@]}" register alpha --no-nft           # 25% of the 1-token fee -> pool reward vault
 "${CLI[@]}" stake-info
 REWARD_BEFORE="$(spl-token balance "$MINT")"
 "${CLI[@]}" stake-claim

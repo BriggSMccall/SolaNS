@@ -43,13 +43,21 @@ spl-token create-token "$MINTKP" --decimals 6 >/dev/null
 spl-token create-account "$MINT" >/dev/null
 spl-token mint "$MINT" 1000000 >/dev/null
 spl-token create-account "$MINT" "$TREASKP" >/dev/null
+# Distinct staking + burn vaults so register_name's mutable token accounts don't
+# collide (ConstraintDuplicateMutableAccount); both default to treasury otherwise.
+STAKINGKP="$(mktemp)"; BURNKP="$(mktemp)"
+solana-keygen new -s --no-bip39-passphrase --force -o "$STAKINGKP" >/dev/null
+solana-keygen new -s --no-bip39-passphrase --force -o "$BURNKP" >/dev/null
+spl-token create-account "$MINT" "$STAKINGKP" >/dev/null
+spl-token create-account "$MINT" "$BURNKP" >/dev/null
+STAKING="$(solana address -k "$STAKINGKP")"; BURN="$(solana address -k "$BURNKP")"
 echo "    mint=$MINT  sol_treasury=$SOL_TREASURY  buyer=$BUYER"
 
 echo "==> init-config (2% SOL marketplace fee)"
-"${SELLER_CLI[@]}" init-config --mint "$MINT" --treasury "$TREASURY" --sol-treasury "$SOL_TREASURY" --fee-bps 200
+"${SELLER_CLI[@]}" init-config --mint "$MINT" --treasury "$TREASURY" --staking-vault "$STAKING" --burn-vault "$BURN" --sol-treasury "$SOL_TREASURY" --fee-bps 200
 
 echo "==> register + list (5 SOL)"
-"${SELLER_CLI[@]}" register alpha
+"${SELLER_CLI[@]}" register alpha --no-nft
 "${SELLER_CLI[@]}" list alpha 5
 echo "--- info alpha (expect 'listed: 5 SOL') ---"
 "${SELLER_CLI[@]}" info alpha
@@ -64,7 +72,7 @@ echo "--- sol_treasury balance (expect ~0.1 SOL = 2% of 5) ---"
 solana balance "$SOL_TREASURY"
 
 echo "==> numeric premium: register a 2-digit number"
-"${SELLER_CLI[@]}" register 42
+"${SELLER_CLI[@]}" register 42 --no-nft
 "${SELLER_CLI[@]}" resolve 42
 
 echo

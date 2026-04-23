@@ -60,12 +60,12 @@ echo "==> burn-init (Config-owned burn vault) + solans-params (1:1 rate, 25% dis
 
 echo "==> register alpha --pay-solans (burns 0.75 \$SOLANS at the discount)"
 SUPPLY_BEFORE="$(spl-token supply "$SOLANS_MINT")"
-"${CLI[@]}" register alpha --pay-solans
+"${CLI[@]}" register alpha --pay-solans --no-nft
 SUPPLY_AFTER_PAYIN="$(spl-token supply "$SOLANS_MINT")"
 echo "    \$SOLANS supply: $SUPPLY_BEFORE -> $SUPPLY_AFTER_PAYIN (0.75 burned)"
 
 echo "==> register beta (USDC) to seed the burn vault with 5% = 0.05 token"
-"${CLI[@]}" register beta
+"${CLI[@]}" register beta --no-nft
 
 echo "==> buyback 50000 (keeper burns 0.05 \$SOLANS, drains the vault)"
 USDC_BEFORE="$(spl-token balance "$MINT")"

@@ -67,7 +67,7 @@ B_CLI=(pnpm --filter solans-cli exec tsx src/index.ts --cluster localnet --keypa
 C_CLI=(pnpm --filter solans-cli exec tsx src/index.ts --cluster localnet --keypair "$CKP")
 
 echo "==> register foo + open an auction (reserve 1 \$SOLANS, +0.1 increment)"
-"${SELLER[@]}" register foo
+"${SELLER[@]}" register foo --no-nft
 "${SELLER[@]}" auction-start foo --reserve 1000000 --increment 100000 --days 1
 
 echo "==> B bids 2 \$SOLANS, then C outbids with 3 \$SOLANS (B refunded)"
@@ -78,7 +78,7 @@ echo "    C \$SOLANS balance: $(spl-token balance "$SOLANS_MINT" --owner "$C") (
 "${SELLER[@]}" auction-info foo
 
 echo "==> register bar + open + cancel (no bids → unfreeze)"
-"${SELLER[@]}" register bar
+"${SELLER[@]}" register bar --no-nft
 "${SELLER[@]}" auction-start bar --reserve 1000000
 "${SELLER[@]}" auction-cancel bar
 echo "--- info bar (expect NOT listed) ---"

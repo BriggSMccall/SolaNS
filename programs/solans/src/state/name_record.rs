@@ -22,7 +22,7 @@ pub struct NameRecord {
     pub owner: Pubkey,
     /// Optional delegate allowed to manage records (not transfer/ownership).
     pub controller: Option<Pubkey>,
-    /// sha256(name + "." + tld) — the canonical key (also the PDA seed).
+    /// keccak256(name + "." + tld) — the canonical key (also the PDA seed).
     pub name_hash: [u8; 32],
     /// Top-level domain, e.g. "sol".
     #[max_len(TLD_MAX_LEN)]
@@ -34,9 +34,9 @@ pub struct NameRecord {
     /// Arbitrary key -> value records.
     #[max_len(MAX_RECORDS)]
     pub records: Vec<Record>,
-    /// Optional custom resolver program (reserved; setter deferred).
+    /// Optional custom resolver program (set via `set_resolver`).
     pub resolver: Option<Pubkey>,
-    /// Optional hosting content ref / CID (reserved; setter deferred).
+    /// Optional hosting content ref / CID (set via `set_hosting`).
     #[max_len(HOSTING_MAX_LEN)]
     pub hosting_ref: Option<String>,
     /// When true, `transfer_name` is rejected.

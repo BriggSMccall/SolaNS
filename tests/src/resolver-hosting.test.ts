@@ -24,19 +24,19 @@ describe("set_resolver / set_hosting", () => {
     pda = await registerName(env, "site");
   });
 
-  it("owner sets and clears the resolver; a stranger cannot (NotOwner)", async () => {
+  it("owner sets and clears the resolver; a stranger cannot (NotAuthorized)", async () => {
     const resolver = (await fundedSigner(env.svm)).address;
-    await send(env.svm, env.payer, [getSetResolverInstruction({ owner: env.payer, nameRecord: pda, resolver })]);
+    await send(env.svm, env.payer, [getSetResolverInstruction({ authority: env.payer, nameRecord: pda, resolver })]);
     expect(unwrapOption(readName(env.svm, pda)!.resolver)).toBe(resolver);
 
-    await send(env.svm, env.payer, [getSetResolverInstruction({ owner: env.payer, nameRecord: pda, resolver: null })]);
+    await send(env.svm, env.payer, [getSetResolverInstruction({ authority: env.payer, nameRecord: pda, resolver: null })]);
     expect(unwrapOption(readName(env.svm, pda)!.resolver)).toBeNull();
 
     const stranger = await fundedSigner(env.svm);
     const res = await sendExpectingFailure(env.svm, stranger, [
-      getSetResolverInstruction({ owner: stranger, nameRecord: pda, resolver: stranger.address }),
+      getSetResolverInstruction({ authority: stranger, nameRecord: pda, resolver: stranger.address }),
     ]);
-    expect(logsOf(res)).toContain("NotOwner");
+    expect(logsOf(res)).toContain("NotAuthorized");
   });
 
   it("owner OR controller can set hosting; a stranger cannot (NotAuthorized)", async () => {

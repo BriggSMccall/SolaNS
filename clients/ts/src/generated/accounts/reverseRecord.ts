@@ -57,7 +57,7 @@ export type ReverseRecord = {
   discriminator: ReadonlyUint8Array;
   /** The wallet this reverse record belongs to. */
   owner: Address;
-  /** sha256 hash of the name it points to (matches `NameRecord.name_hash`). */
+  /** keccak256 hash of the name it points to (matches `NameRecord.name_hash`). */
   nameHash: ReadonlyUint8Array;
   /** Human-readable name label (e.g. "alex"). */
   name: string;
@@ -70,7 +70,7 @@ export type ReverseRecord = {
 export type ReverseRecordArgs = {
   /** The wallet this reverse record belongs to. */
   owner: Address;
-  /** sha256 hash of the name it points to (matches `NameRecord.name_hash`). */
+  /** keccak256 hash of the name it points to (matches `NameRecord.name_hash`). */
   nameHash: ReadonlyUint8Array;
   /** Human-readable name label (e.g. "alex"). */
   name: string;

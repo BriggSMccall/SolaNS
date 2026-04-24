@@ -32,6 +32,7 @@ import {
   type InstructionWithData,
   type Option,
   type OptionOrNullable,
+  type ReadonlyAccount,
   type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
@@ -55,20 +56,24 @@ export function getSetResolverDiscriminatorBytes(): ReadonlyUint8Array {
 
 export type SetResolverInstruction<
   TProgram extends string = typeof SOLANS_PROGRAM_ADDRESS,
-  TAccountOwner extends string | AccountMeta<string> = string,
+  TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountNameRecord extends string | AccountMeta<string> = string,
+  TAccountNftTokenAccount extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
-      TAccountOwner extends string
-        ? ReadonlySignerAccount<TAccountOwner> &
-            AccountSignerMeta<TAccountOwner>
-        : TAccountOwner,
+      TAccountAuthority extends string
+        ? ReadonlySignerAccount<TAccountAuthority> &
+            AccountSignerMeta<TAccountAuthority>
+        : TAccountAuthority,
       TAccountNameRecord extends string
         ? WritableAccount<TAccountNameRecord>
         : TAccountNameRecord,
+      TAccountNftTokenAccount extends string
+        ? ReadonlyAccount<TAccountNftTokenAccount>
+        : TAccountNftTokenAccount,
       ...TRemainingAccounts,
     ]
   >;
@@ -110,29 +115,50 @@ export function getSetResolverInstructionDataCodec(): Codec<
 }
 
 export type SetResolverInput<
-  TAccountOwner extends string = string,
+  TAccountAuthority extends string = string,
   TAccountNameRecord extends string = string,
+  TAccountNftTokenAccount extends string = string,
 > = {
-  owner: TransactionSigner<TAccountOwner>;
+  authority: TransactionSigner<TAccountAuthority>;
   nameRecord: Address<TAccountNameRecord>;
+  /**
+   * Proof of NFT holdership, required only while the name is tokenized: the
+   * holder (not the stale `owner`) manages the resolver attribute — a dynamic
+   * NFT (spec §6.1). Omitted (`None`) for non-tokenized names.
+   */
+  nftTokenAccount?: Address<TAccountNftTokenAccount>;
   resolver: SetResolverInstructionDataArgs["resolver"];
 };
 
 export function getSetResolverInstruction<
-  TAccountOwner extends string,
+  TAccountAuthority extends string,
   TAccountNameRecord extends string,
+  TAccountNftTokenAccount extends string,
   TProgramAddress extends Address = typeof SOLANS_PROGRAM_ADDRESS,
 >(
-  input: SetResolverInput<TAccountOwner, TAccountNameRecord>,
+  input: SetResolverInput<
+    TAccountAuthority,
+    TAccountNameRecord,
+    TAccountNftTokenAccount
+  >,
   config?: { programAddress?: TProgramAddress },
-): SetResolverInstruction<TProgramAddress, TAccountOwner, TAccountNameRecord> {
+): SetResolverInstruction<
+  TProgramAddress,
+  TAccountAuthority,
+  TAccountNameRecord,
+  TAccountNftTokenAccount
+> {
   // Program address.
   const programAddress = config?.programAddress ?? SOLANS_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
-    owner: { value: input.owner ?? null, isWritable: false },
+    authority: { value: input.authority ?? null, isWritable: false },
     nameRecord: { value: input.nameRecord ?? null, isWritable: true },
+    nftTokenAccount: {
+      value: input.nftTokenAccount ?? null,
+      isWritable: false,
+    },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -145,8 +171,9 @@ export function getSetResolverInstruction<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta("owner", accounts.owner),
+      getAccountMeta("authority", accounts.authority),
       getAccountMeta("nameRecord", accounts.nameRecord),
+      getAccountMeta("nftTokenAccount", accounts.nftTokenAccount),
     ],
     data: getSetResolverInstructionDataEncoder().encode(
       args as SetResolverInstructionDataArgs,
@@ -154,8 +181,9 @@ export function getSetResolverInstruction<
     programAddress,
   } as SetResolverInstruction<
     TProgramAddress,
-    TAccountOwner,
-    TAccountNameRecord
+    TAccountAuthority,
+    TAccountNameRecord,
+    TAccountNftTokenAccount
   >);
 }
 
@@ -165,8 +193,14 @@ export type ParsedSetResolverInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    owner: TAccountMetas[0];
+    authority: TAccountMetas[0];
     nameRecord: TAccountMetas[1];
+    /**
+     * Proof of NFT holdership, required only while the name is tokenized: the
+     * holder (not the stale `owner`) manages the resolver attribute — a dynamic
+     * NFT (spec §6.1). Omitted (`None`) for non-tokenized names.
+     */
+    nftTokenAccount?: TAccountMetas[2] | undefined;
   };
   data: SetResolverInstructionData;
 };
@@ -179,12 +213,12 @@ export function parseSetResolverInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetResolverInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
+  if (instruction.accounts.length < 3) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 2,
+        expectedAccountMetas: 3,
       },
     );
   }
@@ -194,9 +228,19 @@ export function parseSetResolverInstruction<
     accountIndex += 1;
     return accountMeta;
   };
+  const getNextOptionalAccount = () => {
+    const accountMeta = getNextAccount();
+    return accountMeta.address === SOLANS_PROGRAM_ADDRESS
+      ? undefined
+      : accountMeta;
+  };
   return {
     programAddress: instruction.programAddress,
-    accounts: { owner: getNextAccount(), nameRecord: getNextAccount() },
+    accounts: {
+      authority: getNextAccount(),
+      nameRecord: getNextAccount(),
+      nftTokenAccount: getNextOptionalAccount(),
+    },
     data: getSetResolverInstructionDataDecoder().decode(instruction.data),
   };
 }

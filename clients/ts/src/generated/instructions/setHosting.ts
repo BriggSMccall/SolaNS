@@ -36,6 +36,7 @@ import {
   type InstructionWithData,
   type Option,
   type OptionOrNullable,
+  type ReadonlyAccount,
   type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
@@ -59,6 +60,7 @@ export type SetHostingInstruction<
   TProgram extends string = typeof SOLANS_PROGRAM_ADDRESS,
   TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountNameRecord extends string | AccountMeta<string> = string,
+  TAccountNftTokenAccount extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -71,6 +73,9 @@ export type SetHostingInstruction<
       TAccountNameRecord extends string
         ? WritableAccount<TAccountNameRecord>
         : TAccountNameRecord,
+      TAccountNftTokenAccount extends string
+        ? ReadonlyAccount<TAccountNftTokenAccount>
+        : TAccountNftTokenAccount,
       ...TRemainingAccounts,
     ]
   >;
@@ -122,23 +127,36 @@ export function getSetHostingInstructionDataCodec(): Codec<
 export type SetHostingInput<
   TAccountAuthority extends string = string,
   TAccountNameRecord extends string = string,
+  TAccountNftTokenAccount extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   nameRecord: Address<TAccountNameRecord>;
+  /**
+   * Proof of NFT holdership, required only while the name is tokenized: the
+   * holder (not the stale `owner`) manages the hosting attribute — a dynamic
+   * NFT (spec §6.1). Omitted (`None`) for non-tokenized names.
+   */
+  nftTokenAccount?: Address<TAccountNftTokenAccount>;
   hostingRef: SetHostingInstructionDataArgs["hostingRef"];
 };
 
 export function getSetHostingInstruction<
   TAccountAuthority extends string,
   TAccountNameRecord extends string,
+  TAccountNftTokenAccount extends string,
   TProgramAddress extends Address = typeof SOLANS_PROGRAM_ADDRESS,
 >(
-  input: SetHostingInput<TAccountAuthority, TAccountNameRecord>,
+  input: SetHostingInput<
+    TAccountAuthority,
+    TAccountNameRecord,
+    TAccountNftTokenAccount
+  >,
   config?: { programAddress?: TProgramAddress },
 ): SetHostingInstruction<
   TProgramAddress,
   TAccountAuthority,
-  TAccountNameRecord
+  TAccountNameRecord,
+  TAccountNftTokenAccount
 > {
   // Program address.
   const programAddress = config?.programAddress ?? SOLANS_PROGRAM_ADDRESS;
@@ -147,6 +165,10 @@ export function getSetHostingInstruction<
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: false },
     nameRecord: { value: input.nameRecord ?? null, isWritable: true },
+    nftTokenAccount: {
+      value: input.nftTokenAccount ?? null,
+      isWritable: false,
+    },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -161,6 +183,7 @@ export function getSetHostingInstruction<
     accounts: [
       getAccountMeta("authority", accounts.authority),
       getAccountMeta("nameRecord", accounts.nameRecord),
+      getAccountMeta("nftTokenAccount", accounts.nftTokenAccount),
     ],
     data: getSetHostingInstructionDataEncoder().encode(
       args as SetHostingInstructionDataArgs,
@@ -169,7 +192,8 @@ export function getSetHostingInstruction<
   } as SetHostingInstruction<
     TProgramAddress,
     TAccountAuthority,
-    TAccountNameRecord
+    TAccountNameRecord,
+    TAccountNftTokenAccount
   >);
 }
 
@@ -181,6 +205,12 @@ export type ParsedSetHostingInstruction<
   accounts: {
     authority: TAccountMetas[0];
     nameRecord: TAccountMetas[1];
+    /**
+     * Proof of NFT holdership, required only while the name is tokenized: the
+     * holder (not the stale `owner`) manages the hosting attribute — a dynamic
+     * NFT (spec §6.1). Omitted (`None`) for non-tokenized names.
+     */
+    nftTokenAccount?: TAccountMetas[2] | undefined;
   };
   data: SetHostingInstructionData;
 };
@@ -193,12 +223,12 @@ export function parseSetHostingInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetHostingInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
+  if (instruction.accounts.length < 3) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 2,
+        expectedAccountMetas: 3,
       },
     );
   }
@@ -208,9 +238,19 @@ export function parseSetHostingInstruction<
     accountIndex += 1;
     return accountMeta;
   };
+  const getNextOptionalAccount = () => {
+    const accountMeta = getNextAccount();
+    return accountMeta.address === SOLANS_PROGRAM_ADDRESS
+      ? undefined
+      : accountMeta;
+  };
   return {
     programAddress: instruction.programAddress,
-    accounts: { authority: getNextAccount(), nameRecord: getNextAccount() },
+    accounts: {
+      authority: getNextAccount(),
+      nameRecord: getNextAccount(),
+      nftTokenAccount: getNextOptionalAccount(),
+    },
     data: getSetHostingInstructionDataDecoder().decode(instruction.data),
   };
 }

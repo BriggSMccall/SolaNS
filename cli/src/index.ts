@@ -48,7 +48,15 @@ import {
   nameParts,
   normalizeName,
 } from "@solans/client";
-import { SolansClient } from "@solans/sdk";
+import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
+import { hostingUrl, pinBytes, SolansClient } from "@solans/sdk";
+
+/** Read `file` and pin it to IPFS via Pinata; returns the CID. */
+async function pinFileToIpfs(jwt: string, file: string): Promise<string> {
+  const bytes = new Uint8Array(await readFile(file));
+  return pinBytes(jwt, bytes, basename(file));
+}
 import {
   ataFor,
   getConfig,
@@ -334,24 +342,62 @@ program
 
 program
   .command("set-resolver <name> <program>")
-  .description("Set a custom resolver program ('none' to clear)")
+  .description("Set a custom resolver program ('none' to clear); owner or NFT holder")
   .action(async (name, resolver, _o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const [nameRecord] = await nameRecordPda(name);
+    const nftTokenAccount = await nftTokenAccountIfTokenized(ctx, name);
     const value = resolver.toLowerCase() === "none" ? null : address(resolver);
-    const ix = getSetResolverInstruction({ owner: ctx.signer, nameRecord, resolver: value });
+    const ix = getSetResolverInstruction({ authority: ctx.signer, nameRecord, resolver: value, nftTokenAccount });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
 
 program
   .command("set-hosting <name> <cid>")
-  .description("Set the hosting content ref ('none' to clear); owner or controller")
+  .description("Set the hosting content ref ('none' to clear); owner, controller, or NFT holder")
   .action(async (name, cid, _o, cmd) => {
     const ctx = await makeContext(g(cmd));
     const [nameRecord] = await nameRecordPda(name);
+    const nftTokenAccount = await nftTokenAccountIfTokenized(ctx, name);
     const value = cid.toLowerCase() === "none" ? null : cid;
-    const ix = getSetHostingInstruction({ authority: ctx.signer, nameRecord, hostingRef: value });
+    const ix = getSetHostingInstruction({ authority: ctx.signer, nameRecord, hostingRef: value, nftTokenAccount });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("host <name>")
+  .description("Show a name's hosted-content ref + the resolved gateway URL (§6)")
+  .action(async (name, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const sdk = SolansClient.fromRpc(ctx.rpc);
+    const ref = await sdk.contentRef(name);
+    if (!ref) {
+      console.log(`${name}: no hosted content`);
+      return;
+    }
+    const url = hostingUrl(ref);
+    if (ctx.opts.json) console.log(JSON.stringify({ name, ref, url }, null, 2));
+    else {
+      console.log(`  ref: ${ref}`);
+      console.log(`  url: ${url ?? "(unsupported ref)"}`);
+    }
+  });
+
+program
+  .command("host-upload <name> <file>")
+  .description("Pin a file to IPFS via Pinata (env PINATA_JWT) and set it as the name's hosting ref")
+  .action(async (name, file, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const jwt = process.env.PINATA_JWT;
+    if (!jwt) throw new Error("set PINATA_JWT to pin to IPFS (https://pinata.cloud)");
+    const cid = await pinFileToIpfs(jwt, file);
+    const ref = `ipfs://${cid}`;
+    const [nameRecord] = await nameRecordPda(name);
+    const nftTokenAccount = await nftTokenAccountIfTokenized(ctx, name);
+    const ix = getSetHostingInstruction({ authority: ctx.signer, nameRecord, hostingRef: ref, nftTokenAccount });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(`  pinned ${file} -> ${ref}`);
+    console.log(`  url: ${hostingUrl(ref)}`);
   });
 
 program

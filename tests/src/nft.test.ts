@@ -11,6 +11,7 @@ import {
   findMetadataPda,
   getBurnNameInstruction,
   getRedeemNameInstructionAsync,
+  getSetHostingInstruction,
   getSetResolverInstruction,
   getTokenizeNameInstructionAsync,
   getTransferNameInstruction,
@@ -78,16 +79,12 @@ describe("tokenize_name / redeem_name (NFT layer)", () => {
     expect(logsOf(await sendExpectingFailure(env.svm, env.payer, [ix]))).toContain("Tokenized");
   });
 
-  it("blocks structural ops while tokenized (transfer / set_resolver / burn -> Tokenized)", async () => {
+  it("blocks structural ops while tokenized (transfer / burn -> Tokenized)", async () => {
     const stranger = await fundedSigner(env.svm);
     const t = await sendExpectingFailure(env.svm, env.payer, [
       getTransferNameInstruction({ owner: env.payer, nameRecord: pda, newOwner: stranger.address }),
     ]);
     expect(logsOf(t)).toContain("Tokenized");
-    const r = await sendExpectingFailure(env.svm, env.payer, [
-      getSetResolverInstruction({ owner: env.payer, nameRecord: pda, resolver: stranger.address }),
-    ]);
-    expect(logsOf(r)).toContain("Tokenized");
     const b = await sendExpectingFailure(env.svm, env.payer, [
       getBurnNameInstruction({ owner: env.payer, nameRecord: pda }),
     ]);
@@ -104,17 +101,26 @@ describe("tokenize_name / redeem_name (NFT layer)", () => {
     expect(readTokenAmount(env.svm, buyerAta)).toBe(1n);
     expect(readTokenAmount(env.svm, ownerAta)).toBe(0n);
 
-    // The holder proves holdership via their token account and updates a record.
+    // The holder proves holdership via their token account and updates a record,
+    // the hosting ref, and the resolver — all dynamic-NFT attributes (§6.1).
     await send(env.svm, buyer, [
       getUpdateRecordInstruction({ authority: buyer, nameRecord: pda, key: "url", value: "https://held", nftTokenAccount: buyerAta }),
+      getSetHostingInstruction({ authority: buyer, nameRecord: pda, hostingRef: "ipfs://held", nftTokenAccount: buyerAta }),
+      getSetResolverInstruction({ authority: buyer, nameRecord: pda, resolver: buyer.address, nftTokenAccount: buyerAta }),
     ]);
     expect(readName(env.svm, pda)!.records.find((r) => r.key === "url")?.value).toBe("https://held");
+    expect(unwrapOption(readName(env.svm, pda)!.hostingRef)).toBe("ipfs://held");
+    expect(unwrapOption(readName(env.svm, pda)!.resolver)).toBe(buyer.address);
 
-    // The stale original owner can no longer manage records.
+    // The stale original owner can no longer manage records or hosting.
     const res = await sendExpectingFailure(env.svm, env.payer, [
       getUpdateRecordInstruction({ authority: env.payer, nameRecord: pda, key: "url", value: "https://stale" }),
     ]);
     expect(logsOf(res)).toContain("NotAuthorized");
+    const host = await sendExpectingFailure(env.svm, env.payer, [
+      getSetHostingInstruction({ authority: env.payer, nameRecord: pda, hostingRef: "ipfs://stale" }),
+    ]);
+    expect(logsOf(host)).toContain("NotAuthorized");
   });
 
   it("the holder redeems: burns the NFT, becomes owner, clears nft_mint", async () => {
@@ -138,10 +144,10 @@ describe("tokenize_name / redeem_name (NFT layer)", () => {
   });
 
   it("after redeem, structural ops work again and the name can re-tokenize with a fresh mint", async () => {
-    // set_resolver now works (not tokenized), signed by the new owner.
-    await send(env.svm, buyer, [getSetResolverInstruction({ owner: buyer, nameRecord: pda, resolver: buyer.address })]);
+    // set_resolver works (not tokenized), signed by the new owner (no NFT proof).
+    await send(env.svm, buyer, [getSetResolverInstruction({ authority: buyer, nameRecord: pda, resolver: buyer.address })]);
     expect(unwrapOption(readName(env.svm, pda)!.resolver)).toBe(buyer.address);
-    await send(env.svm, buyer, [getSetResolverInstruction({ owner: buyer, nameRecord: pda, resolver: null })]);
+    await send(env.svm, buyer, [getSetResolverInstruction({ authority: buyer, nameRecord: pda, resolver: null })]);
 
     const m2 = await generateKeyPairSigner();
     await send(env.svm, buyer, [

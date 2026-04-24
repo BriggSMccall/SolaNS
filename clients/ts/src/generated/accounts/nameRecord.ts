@@ -73,7 +73,7 @@ export type NameRecord = {
   owner: Address;
   /** Optional delegate allowed to manage records (not transfer/ownership). */
   controller: Option<Address>;
-  /** sha256(name + "." + tld) — the canonical key (also the PDA seed). */
+  /** keccak256(name + "." + tld) — the canonical key (also the PDA seed). */
   nameHash: ReadonlyUint8Array;
   /** Top-level domain, e.g. "sol". */
   tld: string;
@@ -83,9 +83,9 @@ export type NameRecord = {
   expiresAt: bigint;
   /** Arbitrary key -> value records. */
   records: Array<Record>;
-  /** Optional custom resolver program (reserved; setter deferred). */
+  /** Optional custom resolver program (set via `set_resolver`). */
   resolver: Option<Address>;
-  /** Optional hosting content ref / CID (reserved; setter deferred). */
+  /** Optional hosting content ref / CID (set via `set_hosting`). */
   hostingRef: Option<string>;
   /** When true, `transfer_name` is rejected. */
   transferLocked: boolean;
@@ -126,7 +126,7 @@ export type NameRecordArgs = {
   owner: Address;
   /** Optional delegate allowed to manage records (not transfer/ownership). */
   controller: OptionOrNullable<Address>;
-  /** sha256(name + "." + tld) — the canonical key (also the PDA seed). */
+  /** keccak256(name + "." + tld) — the canonical key (also the PDA seed). */
   nameHash: ReadonlyUint8Array;
   /** Top-level domain, e.g. "sol". */
   tld: string;
@@ -136,9 +136,9 @@ export type NameRecordArgs = {
   expiresAt: number | bigint;
   /** Arbitrary key -> value records. */
   records: Array<RecordArgs>;
-  /** Optional custom resolver program (reserved; setter deferred). */
+  /** Optional custom resolver program (set via `set_resolver`). */
   resolver: OptionOrNullable<Address>;
-  /** Optional hosting content ref / CID (reserved; setter deferred). */
+  /** Optional hosting content ref / CID (set via `set_hosting`). */
   hostingRef: OptionOrNullable<string>;
   /** When true, `transfer_name` is rejected. */
   transferLocked: boolean;

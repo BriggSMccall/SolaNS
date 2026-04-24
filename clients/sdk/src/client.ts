@@ -83,6 +83,23 @@ export class SolansClient {
     return (await this.resolve(name))?.records ?? [];
   }
 
+  /**
+   * The name's hosted-content reference (§6): the `hosting_ref` field if set,
+   * else the `content` record, else the `url` record, else null. Pass the result
+   * to {@link hostingUrl} for a fetchable gateway URL.
+   */
+  async contentRef(name: string): Promise<string | null> {
+    const rec = await this.resolve(name);
+    if (!rec) return null;
+    const hosting = unwrapOption(rec.hostingRef);
+    if (hosting) return hosting;
+    return (
+      rec.records.find((r) => r.key === "content")?.value ??
+      rec.records.find((r) => r.key === "url")?.value ??
+      null
+    );
+  }
+
   /** The active marketplace listing for a name, or null if not listed. */
   async getListing(name: string): Promise<Listing | null> {
     const [pda] = await findListing(name);

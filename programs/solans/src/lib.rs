@@ -244,6 +244,20 @@ pub mod solans {
         instructions::cancel_auction::handler(ctx)
     }
 
+    /// On-chain CPI resolver (§5.2): returns the owner (or a record value) via
+    /// `return_data`. Consumers call `solans::cpi::resolve` + `get_return_data`.
+    pub fn resolve(
+        ctx: Context<Resolve>,
+        name_hash: [u8; 32],
+        record_key: Option<String>,
+    ) -> Result<()> {
+        instructions::resolve::handler(ctx, name_hash, record_key)
+    }
+
+    pub fn transfer_admin(ctx: Context<TransferAdmin>, new_admin: Pubkey) -> Result<()> {
+        instructions::transfer_admin::handler(ctx, new_admin)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn update_config(
         ctx: Context<UpdateConfig>,

@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { address, generateKeyPairSigner, unwrapOption } from "@solana/kit";
+import { address, generateKeyPairSigner, getAddressDecoder, unwrapOption } from "@solana/kit";
 import {
   computeSubdomainHash,
   findAuction,
@@ -39,6 +39,8 @@ import {
   getSetReverseInstructionAsync,
   getTokenizeNameInstructionAsync,
   getTransferNameInstruction,
+  getResolveInstruction,
+  getTransferAdminInstructionAsync,
   getUpdateConfigInstructionAsync,
   getUpdateListingInstruction,
   getUpdateRecordInstruction,
@@ -63,6 +65,7 @@ import {
   makeContext,
   reportSig,
   sendInstructions,
+  simulateReturnData,
   type Ctx,
   type GlobalOpts,
 } from "./context.ts";
@@ -187,6 +190,16 @@ program
       burnFeeBps: o.burnBps ? Number(o.burnBps) : d.burnFeeBps,
     });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("transfer-admin <newAdmin>")
+  .description("Rotate the config admin authority, e.g. to a multisig/DAO (admin)")
+  .action(async (newAdmin, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const ix = await getTransferAdminInstructionAsync({ admin: ctx.signer, newAdmin: address(newAdmin) });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(`  admin -> ${newAdmin}`);
   });
 
 // --- register / renew / claim ----------------------------------------------
@@ -974,6 +987,23 @@ program
   .description("Resolve a name -> owner, expiry, records")
   .action(async (name, _o, cmd) => {
     await showRecord(await makeContext(g(cmd)), name, false);
+  });
+
+program
+  .command("resolve-cpi <name> [key]")
+  .description("Resolve a name on-chain via the §5.2 CPI resolver (reads return_data)")
+  .action(async (name, key, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const { hash } = nameParts(name);
+    const [nameRecord] = await findNameRecordPda({ nameHash: hash });
+    const ix = getResolveInstruction({ nameRecord, nameHash: hash, recordKey: key ?? null });
+    const data = await simulateReturnData(ctx, [ix]);
+    if (!data || data.length === 0) {
+      console.log(key ? `  ${key}: (unset)` : "  (no data)");
+      return;
+    }
+    if (key) console.log(`  ${key}: ${new TextDecoder().decode(data)}`);
+    else console.log(`  owner: ${getAddressDecoder().decode(data)}`);
   });
 
 program

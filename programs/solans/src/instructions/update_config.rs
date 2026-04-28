@@ -16,8 +16,9 @@ pub struct UpdateConfig<'info> {
     pub config: Account<'info, Config>,
 }
 
-/// Update the registry's economic parameters. Admin only. Payment mint, treasury,
-/// and the admin key itself are immutable in the MVP (rotate via redeploy/migration).
+/// Update the registry's economic parameters. Admin only. The admin key rotates
+/// via `transfer_admin` (e.g. to a multisig/DAO); payment mint + treasury stay
+/// immutable (changing them mid-life would strand fees/escrows — a redeploy concern).
 #[allow(clippy::too_many_arguments)]
 pub fn handler(
     ctx: Context<UpdateConfig>,

@@ -106,3 +106,10 @@ pub struct AuctionCancelled {
     pub name_hash: [u8; 32],
     pub seller: Pubkey,
 }
+
+/// The config admin authority was rotated (e.g. handed to a multisig/DAO).
+#[event]
+pub struct AdminTransferred {
+    pub old_admin: Pubkey,
+    pub new_admin: Pubkey,
+}

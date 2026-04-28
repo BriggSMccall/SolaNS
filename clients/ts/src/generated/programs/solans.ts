@@ -82,6 +82,7 @@ import {
   getRegisterWithSolansInstructionAsync,
   getRenewNameInstructionAsync,
   getRenewWithSolansInstructionAsync,
+  getResolveInstruction,
   getRevokeSubdomainInstruction,
   getSetControllerInstruction,
   getSetHostingInstruction,
@@ -92,6 +93,7 @@ import {
   getStakeInstructionAsync,
   getStartAuctionInstructionAsync,
   getTokenizeNameInstructionAsync,
+  getTransferAdminInstructionAsync,
   getTransferNameInstruction,
   getUnstakeInstructionAsync,
   getUpdateConfigInstructionAsync,
@@ -119,6 +121,7 @@ import {
   parseRegisterWithSolansInstruction,
   parseRenewNameInstruction,
   parseRenewWithSolansInstruction,
+  parseResolveInstruction,
   parseRevokeSubdomainInstruction,
   parseSetControllerInstruction,
   parseSetHostingInstruction,
@@ -129,6 +132,7 @@ import {
   parseStakeInstruction,
   parseStartAuctionInstruction,
   parseTokenizeNameInstruction,
+  parseTransferAdminInstruction,
   parseTransferNameInstruction,
   parseUnstakeInstruction,
   parseUpdateConfigInstruction,
@@ -172,6 +176,7 @@ import {
   type ParsedRegisterWithSolansInstruction,
   type ParsedRenewNameInstruction,
   type ParsedRenewWithSolansInstruction,
+  type ParsedResolveInstruction,
   type ParsedRevokeSubdomainInstruction,
   type ParsedSetControllerInstruction,
   type ParsedSetHostingInstruction,
@@ -182,6 +187,7 @@ import {
   type ParsedStakeInstruction,
   type ParsedStartAuctionInstruction,
   type ParsedTokenizeNameInstruction,
+  type ParsedTransferAdminInstruction,
   type ParsedTransferNameInstruction,
   type ParsedUnstakeInstruction,
   type ParsedUpdateConfigInstruction,
@@ -193,6 +199,7 @@ import {
   type RegisterWithSolansAsyncInput,
   type RenewNameAsyncInput,
   type RenewWithSolansAsyncInput,
+  type ResolveInput,
   type RevokeSubdomainInput,
   type SetControllerInput,
   type SetHostingInput,
@@ -203,6 +210,7 @@ import {
   type StakeAsyncInput,
   type StartAuctionAsyncInput,
   type TokenizeNameAsyncInput,
+  type TransferAdminAsyncInput,
   type TransferNameInput,
   type UnstakeAsyncInput,
   type UpdateConfigAsyncInput,
@@ -354,6 +362,7 @@ export enum SolansInstruction {
   RegisterWithSolans,
   RenewName,
   RenewWithSolans,
+  Resolve,
   RevokeSubdomain,
   SetController,
   SetHosting,
@@ -364,6 +373,7 @@ export enum SolansInstruction {
   Stake,
   StartAuction,
   TokenizeName,
+  TransferAdmin,
   TransferName,
   Unstake,
   UpdateConfig,
@@ -611,6 +621,17 @@ export function identifySolansInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([246, 150, 236, 206, 108, 63, 58, 10]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.Resolve;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([161, 15, 96, 214, 145, 88, 83, 118]),
       ),
       0,
@@ -716,6 +737,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.TokenizeName;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([42, 242, 66, 106, 228, 10, 111, 156]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.TransferAdmin;
   }
   if (
     containsBytes(
@@ -856,6 +888,9 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.RenewWithSolans;
     } & ParsedRenewWithSolansInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.Resolve;
+    } & ParsedResolveInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.RevokeSubdomain;
     } & ParsedRevokeSubdomainInstruction<TProgram>)
   | ({
@@ -885,6 +920,9 @@ export type ParsedSolansInstruction<
   | ({
       instructionType: SolansInstruction.TokenizeName;
     } & ParsedTokenizeNameInstruction<TProgram>)
+  | ({
+      instructionType: SolansInstruction.TransferAdmin;
+    } & ParsedTransferAdminInstruction<TProgram>)
   | ({
       instructionType: SolansInstruction.TransferName;
     } & ParsedTransferNameInstruction<TProgram>)
@@ -1056,6 +1094,13 @@ export function parseSolansInstruction<TProgram extends string>(
         ...parseRenewWithSolansInstruction(instruction),
       };
     }
+    case SolansInstruction.Resolve: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.Resolve,
+        ...parseResolveInstruction(instruction),
+      };
+    }
     case SolansInstruction.RevokeSubdomain: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -1124,6 +1169,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.TokenizeName,
         ...parseTokenizeNameInstruction(instruction),
+      };
+    }
+    case SolansInstruction.TransferAdmin: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.TransferAdmin,
+        ...parseTransferAdminInstruction(instruction),
       };
     }
     case SolansInstruction.TransferName: {
@@ -1282,6 +1334,9 @@ export type SolansPluginInstructions = {
     input: MakeOptional<RenewWithSolansAsyncInput, "payer">,
   ) => ReturnType<typeof getRenewWithSolansInstructionAsync> &
     SelfPlanAndSendFunctions;
+  resolve: (
+    input: ResolveInput,
+  ) => ReturnType<typeof getResolveInstruction> & SelfPlanAndSendFunctions;
   revokeSubdomain: (
     input: RevokeSubdomainInput,
   ) => ReturnType<typeof getRevokeSubdomainInstruction> &
@@ -1318,6 +1373,10 @@ export type SolansPluginInstructions = {
   tokenizeName: (
     input: TokenizeNameAsyncInput,
   ) => ReturnType<typeof getTokenizeNameInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  transferAdmin: (
+    input: TransferAdminAsyncInput,
+  ) => ReturnType<typeof getTransferAdminInstructionAsync> &
     SelfPlanAndSendFunctions;
   transferName: (
     input: TransferNameInput,
@@ -1481,6 +1540,8 @@ export function solansProgram() {
                 payer: input.payer ?? client.payer,
               }),
             ),
+          resolve: (input) =>
+            addSelfPlanAndSendFunctions(client, getResolveInstruction(input)),
           revokeSubdomain: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -1530,6 +1591,11 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getTokenizeNameInstructionAsync(input),
+            ),
+          transferAdmin: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getTransferAdminInstructionAsync(input),
             ),
           transferName: (input) =>
             addSelfPlanAndSendFunctions(

@@ -169,6 +169,10 @@ export function readMintSupply(svm: LiteSVM, mint: Address): bigint | null {
   if (!a.exists || a.data.length === 0) return null;
   return getMintDecoder().decode(a.data).supply;
 }
+/** Program `return_data` bytes from a successful tx (empty if none) — for `resolve`. */
+export function returnDataOf(meta: TransactionMetadata): Uint8Array {
+  return meta.returnData().data();
+}
 
 /** Warp the validator clock to a given unix timestamp (for expiry tests). */
 export function warpToUnixTimestamp(svm: LiteSVM, unixTimestamp: bigint): void {

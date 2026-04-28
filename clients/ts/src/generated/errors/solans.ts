@@ -102,6 +102,8 @@ export const SOLANS_ERROR__AUCTION_HAS_BIDS = 0x1799; // 6041
 export const SOLANS_ERROR__SELF_BID = 0x179a; // 6042
 /** WrongRefundAccount: Refund account does not belong to the current highest bidder */
 export const SOLANS_ERROR__WRONG_REFUND_ACCOUNT = 0x179b; // 6043
+/** NameExpired: Name has expired and does not resolve */
+export const SOLANS_ERROR__NAME_EXPIRED = 0x179c; // 6044
 
 export type SolansError =
   | typeof SOLANS_ERROR__AUCTION_ACTIVE
@@ -124,6 +126,7 @@ export type SolansError =
   | typeof SOLANS_ERROR__LISTED
   | typeof SOLANS_ERROR__LISTING_EXPIRED
   | typeof SOLANS_ERROR__MATH_OVERFLOW
+  | typeof SOLANS_ERROR__NAME_EXPIRED
   | typeof SOLANS_ERROR__NAME_MISMATCH
   | typeof SOLANS_ERROR__NOT_ADMIN
   | typeof SOLANS_ERROR__NOT_AUTHORIZED
@@ -172,6 +175,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__LISTED]: `Name is listed for sale; cancel the listing first`,
     [SOLANS_ERROR__LISTING_EXPIRED]: `Listing has expired`,
     [SOLANS_ERROR__MATH_OVERFLOW]: `Arithmetic overflow`,
+    [SOLANS_ERROR__NAME_EXPIRED]: `Name has expired and does not resolve`,
     [SOLANS_ERROR__NAME_MISMATCH]: `Provided name does not match the account's name hash`,
     [SOLANS_ERROR__NOT_ADMIN]: `Signer is not the config admin`,
     [SOLANS_ERROR__NOT_AUTHORIZED]: `Signer is not the owner or controller of this name`,

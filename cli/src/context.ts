@@ -122,6 +122,27 @@ export async function sendInstructions(ctx: Ctx, instructions: readonly any[]): 
   return getSignatureFromTransaction(signedTx);
 }
 
+/** Simulate `instructions` and return the program's `return_data` bytes (or null). */
+export async function simulateReturnData(ctx: Ctx, instructions: readonly any[]): Promise<Uint8Array | null> {
+  const { value: latestBlockhash } = await ctx.rpc.getLatestBlockhash().send();
+  const message = pipe(
+    createTransactionMessage({ version: 0 }),
+    (m) => setTransactionMessageFeePayerSigner(ctx.signer, m),
+    (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+    (m) => appendTransactionMessageInstructions(instructions, m),
+  );
+  const signedTx = await signTransactionMessageWithSigners(message);
+  const sim = await ctx.rpc
+    .simulateTransaction(getBase64EncodedWireTransaction(signedTx), { encoding: "base64" })
+    .send();
+  if (sim.value.err) {
+    for (const line of sim.value.logs ?? []) console.error("   ", line);
+    throw new Error(`simulation failed: ${JSON.stringify(sim.value.err)}`);
+  }
+  const data = sim.value.returnData?.data?.[0];
+  return data ? new Uint8Array(Buffer.from(data, "base64")) : null;
+}
+
 export function reportSig(ctx: Ctx, sig: string | null): void {
   if (!sig) return;
   console.log(`✓ ${sig}`);

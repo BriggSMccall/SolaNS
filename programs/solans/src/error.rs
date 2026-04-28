@@ -90,4 +90,6 @@ pub enum SolansError {
     SelfBid,
     #[msg("Refund account does not belong to the current highest bidder")]
     WrongRefundAccount,
+    #[msg("Name has expired and does not resolve")]
+    NameExpired,
 }

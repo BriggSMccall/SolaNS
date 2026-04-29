@@ -2,6 +2,7 @@
 #![allow(ambiguous_glob_reexports)]
 
 pub mod accept_offer;
+pub mod auto_renew;
 pub mod bid;
 pub mod burn_name;
 pub mod buy_name;
@@ -46,6 +47,7 @@ pub mod wrap_subdomain;
 // crate root. The colliding `handler` symbols are never referenced via the glob
 // (handlers are called by full path: `instructions::<mod>::handler`).
 pub use accept_offer::*;
+pub use auto_renew::*;
 pub use bid::*;
 pub use burn_name::*;
 pub use buy_name::*;

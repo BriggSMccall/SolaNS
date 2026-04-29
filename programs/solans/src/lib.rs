@@ -72,6 +72,17 @@ pub mod solans {
         instructions::renew_name::handler(ctx, name, tld, years)
     }
 
+    /// §6.2 auto-renew: a permissionless keeper extends a name near expiry by
+    /// charging the owner's Config-PDA-delegated payment-mint account.
+    pub fn auto_renew(
+        ctx: Context<AutoRenew>,
+        name: String,
+        tld: String,
+        years: u16,
+    ) -> Result<()> {
+        instructions::auto_renew::handler(ctx, name, tld, years)
+    }
+
     pub fn update_record(
         ctx: Context<UpdateRecord>,
         key: String,

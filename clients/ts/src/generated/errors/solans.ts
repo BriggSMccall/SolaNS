@@ -104,11 +104,14 @@ export const SOLANS_ERROR__SELF_BID = 0x179a; // 6042
 export const SOLANS_ERROR__WRONG_REFUND_ACCOUNT = 0x179b; // 6043
 /** NameExpired: Name has expired and does not resolve */
 export const SOLANS_ERROR__NAME_EXPIRED = 0x179c; // 6044
+/** AutoRenewTooEarly: Name is not yet within the auto-renew window */
+export const SOLANS_ERROR__AUTO_RENEW_TOO_EARLY = 0x179d; // 6045
 
 export type SolansError =
   | typeof SOLANS_ERROR__AUCTION_ACTIVE
   | typeof SOLANS_ERROR__AUCTION_ENDED
   | typeof SOLANS_ERROR__AUCTION_HAS_BIDS
+  | typeof SOLANS_ERROR__AUTO_RENEW_TOO_EARLY
   | typeof SOLANS_ERROR__BID_TOO_LOW
   | typeof SOLANS_ERROR__INSUFFICIENT_BURN_VAULT
   | typeof SOLANS_ERROR__INSUFFICIENT_STAKE
@@ -158,6 +161,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__AUCTION_ACTIVE]: `Auction is still active`,
     [SOLANS_ERROR__AUCTION_ENDED]: `Auction has ended`,
     [SOLANS_ERROR__AUCTION_HAS_BIDS]: `Auction already has bids and cannot be cancelled`,
+    [SOLANS_ERROR__AUTO_RENEW_TOO_EARLY]: `Name is not yet within the auto-renew window`,
     [SOLANS_ERROR__BID_TOO_LOW]: `Bid is below the reserve or the minimum increment`,
     [SOLANS_ERROR__INSUFFICIENT_BURN_VAULT]: `Burn vault has insufficient balance for this buyback`,
     [SOLANS_ERROR__INSUFFICIENT_STAKE]: `Insufficient staked balance`,

@@ -7,6 +7,7 @@
  */
 
 export * from "./acceptOffer";
+export * from "./autoRenew";
 export * from "./bid";
 export * from "./burnName";
 export * from "./buybackBurn";

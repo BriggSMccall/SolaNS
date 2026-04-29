@@ -62,6 +62,7 @@ import {
 } from "../accounts";
 import {
   getAcceptOfferInstructionAsync,
+  getAutoRenewInstructionAsync,
   getBidInstruction,
   getBurnNameInstruction,
   getBuybackBurnInstructionAsync,
@@ -101,6 +102,7 @@ import {
   getUpdateRecordInstruction,
   getWrapSubdomainInstructionAsync,
   parseAcceptOfferInstruction,
+  parseAutoRenewInstruction,
   parseBidInstruction,
   parseBurnNameInstruction,
   parseBuybackBurnInstruction,
@@ -140,6 +142,7 @@ import {
   parseUpdateRecordInstruction,
   parseWrapSubdomainInstruction,
   type AcceptOfferAsyncInput,
+  type AutoRenewAsyncInput,
   type BidInput,
   type BurnNameInput,
   type BuybackBurnAsyncInput,
@@ -156,6 +159,7 @@ import {
   type LockTransferInput,
   type MakeOfferInput,
   type ParsedAcceptOfferInstruction,
+  type ParsedAutoRenewInstruction,
   type ParsedBidInstruction,
   type ParsedBurnNameInstruction,
   type ParsedBuybackBurnInstruction,
@@ -342,6 +346,7 @@ export function identifySolansAccount(
 
 export enum SolansInstruction {
   AcceptOffer,
+  AutoRenew,
   Bid,
   BurnName,
   BuyName,
@@ -396,6 +401,17 @@ export function identifySolansInstruction(
     )
   ) {
     return SolansInstruction.AcceptOffer;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([95, 201, 47, 51, 62, 31, 63, 37]),
+      ),
+      0,
+    )
+  ) {
+    return SolansInstruction.AutoRenew;
   }
   if (
     containsBytes(
@@ -828,6 +844,9 @@ export type ParsedSolansInstruction<
       instructionType: SolansInstruction.AcceptOffer;
     } & ParsedAcceptOfferInstruction<TProgram>)
   | ({
+      instructionType: SolansInstruction.AutoRenew;
+    } & ParsedAutoRenewInstruction<TProgram>)
+  | ({
       instructionType: SolansInstruction.Bid;
     } & ParsedBidInstruction<TProgram>)
   | ({
@@ -952,6 +971,13 @@ export function parseSolansInstruction<TProgram extends string>(
       return {
         instructionType: SolansInstruction.AcceptOffer,
         ...parseAcceptOfferInstruction(instruction),
+      };
+    }
+    case SolansInstruction.AutoRenew: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: SolansInstruction.AutoRenew,
+        ...parseAutoRenewInstruction(instruction),
       };
     }
     case SolansInstruction.Bid: {
@@ -1261,6 +1287,10 @@ export type SolansPluginInstructions = {
     input: AcceptOfferAsyncInput,
   ) => ReturnType<typeof getAcceptOfferInstructionAsync> &
     SelfPlanAndSendFunctions;
+  autoRenew: (
+    input: AutoRenewAsyncInput,
+  ) => ReturnType<typeof getAutoRenewInstructionAsync> &
+    SelfPlanAndSendFunctions;
   bid: (
     input: BidInput,
   ) => ReturnType<typeof getBidInstruction> & SelfPlanAndSendFunctions;
@@ -1439,6 +1469,11 @@ export function solansProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getAcceptOfferInstructionAsync(input),
+            ),
+          autoRenew: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getAutoRenewInstructionAsync(input),
             ),
           bid: (input) =>
             addSelfPlanAndSendFunctions(client, getBidInstruction(input)),

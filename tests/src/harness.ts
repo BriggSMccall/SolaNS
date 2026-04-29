@@ -173,6 +173,12 @@ export function readMintSupply(svm: LiteSVM, mint: Address): bigint | null {
 export function returnDataOf(meta: TransactionMetadata): Uint8Array {
   return meta.returnData().data();
 }
+/** Delegated (approved) amount on an SPL token account — for auto-renew. */
+export function readDelegatedAmount(svm: LiteSVM, ata: Address): bigint | null {
+  const a = svm.getAccount(ata);
+  if (!a.exists || a.data.length === 0) return null;
+  return getTokenDecoder().decode(a.data).delegatedAmount;
+}
 
 /** Warp the validator clock to a given unix timestamp (for expiry tests). */
 export function warpToUnixTimestamp(svm: LiteSVM, unixTimestamp: bigint): void {

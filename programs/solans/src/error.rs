@@ -92,4 +92,6 @@ pub enum SolansError {
     WrongRefundAccount,
     #[msg("Name has expired and does not resolve")]
     NameExpired,
+    #[msg("Name is not yet within the auto-renew window")]
+    AutoRenewTooEarly,
 }

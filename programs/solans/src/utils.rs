@@ -311,3 +311,31 @@ pub fn distribute_fee<'info>(
     transfer_tokens(token_program, payer_token_account, treasury, mint, authority, treasury_share)?;
     Ok(())
 }
+
+/// Like [`distribute_fee`] but the source transfer is authorized by a **PDA
+/// delegate** (`authority` + `signer_seeds`) rather than a `Signer` — used by
+/// `auto_renew`, where the Config PDA is the SPL delegate of the owner's account.
+/// Always referrer-less (the referral share folds into treasury).
+#[allow(clippy::too_many_arguments)]
+pub fn distribute_fee_signed<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    from: &InterfaceAccount<'info, TokenAccount>,
+    treasury: &InterfaceAccount<'info, TokenAccount>,
+    staking_vault: &InterfaceAccount<'info, TokenAccount>,
+    burn_vault: &InterfaceAccount<'info, TokenAccount>,
+    mint: &InterfaceAccount<'info, Mint>,
+    authority: &AccountInfo<'info>,
+    signer_seeds: &[&[&[u8]]],
+    amount: u64,
+    config: &Config,
+) -> Result<()> {
+    let (treasury_share, staking_share, referral_share, burn_share) = config.fee_split(amount);
+    // Referrer-less: the referral share folds into treasury.
+    let treasury_total = treasury_share
+        .checked_add(referral_share)
+        .ok_or_else(|| error!(SolansError::MathOverflow))?;
+    transfer_tokens_signed(token_program, from, staking_vault, mint, authority, signer_seeds, staking_share)?;
+    transfer_tokens_signed(token_program, from, burn_vault, mint, authority, signer_seeds, burn_share)?;
+    transfer_tokens_signed(token_program, from, treasury, mint, authority, signer_seeds, treasury_total)?;
+    Ok(())
+}

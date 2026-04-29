@@ -3,10 +3,12 @@ import { address, generateKeyPairSigner, getAddressDecoder, unwrapOption } from 
 import {
   computeSubdomainHash,
   findAuction,
+  findConfigPda,
   findListing,
   findNameRecordPda,
   findOffer,
   getAcceptOfferInstruction,
+  getAutoRenewInstructionAsync,
   getBidInstruction,
   getCancelAuctionInstruction,
   getSettleAuctionInstructionAsync,
@@ -50,6 +52,7 @@ import {
   nameParts,
   normalizeName,
 } from "@solans/client";
+import { getApproveInstruction, getRevokeInstruction } from "@solana-program/token";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { hostingUrl, pinBytes, SolansClient } from "@solans/sdk";
@@ -289,6 +292,62 @@ program
           tld,
           years: Number(o.years),
         });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("auto-renew-enable <amount>")
+  .description("Approve the Config PDA as delegate to auto-renew your names (§6.2); covers `amount` base units")
+  .action(async (amount, _o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const cfg = await getConfig(ctx);
+    const [config] = await findConfigPda();
+    const ix = getApproveInstruction({
+      source: await ataFor(ctx.signer.address, cfg.data.paymentMint),
+      delegate: config,
+      owner: ctx.signer,
+      amount: BigInt(amount),
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+    console.log(`  auto-renew enabled (delegated ${amount} to the Config PDA)`);
+  });
+
+program
+  .command("auto-renew-disable")
+  .description("Revoke the auto-renew delegation on your payment account (§6.2)")
+  .action(async (_o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const cfg = await getConfig(ctx);
+    const ix = getRevokeInstruction({
+      source: await ataFor(ctx.signer.address, cfg.data.paymentMint),
+      owner: ctx.signer,
+    });
+    reportSig(ctx, await sendInstructions(ctx, [ix]));
+  });
+
+program
+  .command("auto-renew <name>")
+  .description("Keeper: auto-renew a name from the owner's delegated funds (§6.2)")
+  .option("--years <n>", "term in years", "1")
+  .action(async (name, o, cmd) => {
+    const ctx = await makeContext(g(cmd));
+    const cfg = await getConfig(ctx);
+    const { name: label, tld, hash } = nameParts(name);
+    const rec = await SolansClient.fromRpc(ctx.rpc).resolve(name);
+    if (!rec) throw new Error(`${name} is not registered`);
+    const [nameRecord] = await findNameRecordPda({ nameHash: hash });
+    const ix = await getAutoRenewInstructionAsync({
+      keeper: ctx.signer,
+      nameRecord,
+      ownerTokenAccount: await ataFor(rec.owner, cfg.data.paymentMint),
+      treasuryTokenAccount: cfg.data.treasuryTokenAccount,
+      stakingVault: cfg.data.stakingVault,
+      burnVault: cfg.data.burnVault,
+      paymentMint: cfg.data.paymentMint,
+      name: label,
+      tld,
+      years: Number(o.years),
+    });
     reportSig(ctx, await sendInstructions(ctx, [ix]));
   });
 

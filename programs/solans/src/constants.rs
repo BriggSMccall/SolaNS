@@ -39,6 +39,10 @@ pub const HOSTING_MAX_LEN: usize = 80;
 // Time: 365-day approximation (leap seconds ignored for the MVP).
 pub const SECONDS_PER_YEAR: i64 = 31_536_000;
 
+// Auto-renew (§6.2): a name may only be auto-renewed once within this window of
+// its expiry (30 days), so a keeper can't drain the owner's delegation early.
+pub const RENEWAL_WINDOW_SECONDS: i64 = 2_592_000;
+
 // Metaplex Token Metadata `name` field cap (the on-chain program enforces 32).
 pub const MPL_NAME_MAX_LEN: usize = 32;
 

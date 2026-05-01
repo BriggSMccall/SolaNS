@@ -95,10 +95,12 @@ pub fn handler(ctx: Context<TokenizeName>, name: String) -> Result<()> {
 
     let name_hash = ctx.accounts.name_record.name_hash;
     let bump = ctx.accounts.name_record.bump;
-    // "<label>.<tld>" capped at the Metaplex 32-byte limit (names are ASCII, so
-    // a byte truncate lands on a char boundary).
+    // "<label>.<tld>" capped at the Metaplex 32-byte limit. Pop whole chars (not a
+    // raw byte truncate, which panics mid-`char`) so emoji names stay valid UTF-8.
     let mut nft_name = format!("{}.{}", name, ctx.accounts.name_record.tld);
-    nft_name.truncate(MPL_NAME_MAX_LEN);
+    while nft_name.len() > MPL_NAME_MAX_LEN {
+        nft_name.pop();
+    }
 
     let signer_seeds: &[&[&[u8]]] = &[&[NAME_SEED, name_hash.as_ref(), &[bump]]];
 

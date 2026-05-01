@@ -63,10 +63,15 @@ impl Config {
         }
     }
 
-    /// Price-per-year for a validated label, applying the numeric premium: an
-    /// all-digit label of length ≤ 4 (spec §9.2 "Numeric 1–4 digits") costs
-    /// `price_numeric`; everything else uses the length tier.
+    /// Price-per-year for a validated label, applying the §9.2 premia:
+    /// - an **emoji / non-ASCII** name is a separate category at **2× the length
+    ///   tier** (by Unicode code-point count, since emoji are multi-byte);
+    /// - an **all-digit** label of length ≤ 4 ("Numeric 1–4 digits") costs `price_numeric`;
+    /// - everything else uses the byte-length tier.
     pub fn price_for_label(&self, label: &str) -> u64 {
+        if !label.is_ascii() {
+            return self.price_for_len(label.chars().count()).saturating_mul(2);
+        }
         let b = label.as_bytes();
         if b.len() <= 4 && b.iter().all(|c| c.is_ascii_digit()) {
             self.price_numeric

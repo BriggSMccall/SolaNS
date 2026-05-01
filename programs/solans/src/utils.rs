@@ -27,38 +27,57 @@ pub fn name_authority_ok(
     }
 }
 
-/// Validate a name's raw bytes against the on-chain canonical form:
-/// lowercase ASCII `[a-z0-9-]`, length 1..=63, no leading/trailing/double hyphen.
-///
-/// Full Unicode/NFKC/confusables handling is intentionally a client concern;
-/// restricting on-chain names to lowercase ASCII guarantees exactly one byte
-/// string per registrable name, eliminating homograph/normalization attacks.
+/// An allowed emoji / pictograph code point (§9.2 "emoji names"). Unicode *letters*
+/// stay banned on-chain — they're the homograph vector (Cyrillic `а` vs Latin `a`),
+/// and §11.1's NFKC + confusables normalization runs client-side. Emoji are visually
+/// distinct from ASCII letters, so allowing them adds the §9.2 category without
+/// re-opening homograph attacks. The TS `normalize.ts` mirrors these ranges exactly.
+pub fn is_emoji_char(c: char) -> bool {
+    matches!(c as u32,
+        0x1F300..=0x1FAFF   // emoticons, symbols & pictographs, transport, ext-A …
+        | 0x2600..=0x27BF   // misc symbols + dingbats
+        | 0x1F1E6..=0x1F1FF // regional indicators (flags)
+        | 0x2300..=0x23FF   // misc technical (⌚ ⏰ …)
+        | 0x2B00..=0x2BFF   // misc symbols and arrows (⭐ …)
+        | 0x200D            // zero-width joiner (emoji sequences)
+        | 0x20E3            // combining enclosing keycap
+        | 0xFE0F            // variation selector-16
+    )
+}
+
+/// Validate a name's canonical form: each char is lowercase ASCII `[a-z0-9-]` **or**
+/// an allowed emoji (§9.2); length 1..=63 **bytes** (DNS cap); no leading/trailing/
+/// double hyphen. The client already lowercased + NFKC-normalized + banned
+/// confusables (§11.1) — on-chain we trust that, and additionally keep Unicode
+/// letters out so no homograph can ever be registered.
 pub fn validate_name(name: &str) -> Result<()> {
-    let bytes = name.as_bytes();
-    let len = bytes.len();
+    let len = name.as_bytes().len();
     require!(
         len >= NAME_MIN_LEN && len <= NAME_MAX_LEN,
         SolansError::InvalidNameLength
     );
-    // len >= 1 is guaranteed above, so indexing is safe.
-    require!(
-        bytes[0] != b'-' && bytes[len - 1] != b'-',
-        SolansError::InvalidNameHyphen
-    );
 
+    let mut first: Option<char> = None;
+    let mut last = '\0';
     let mut prev_hyphen = false;
-    for &b in bytes {
+    for c in name.chars() {
+        if first.is_none() {
+            first = Some(c);
+        }
+        last = c;
         require!(
-            matches!(b, b'a'..=b'z' | b'0'..=b'9' | b'-'),
+            matches!(c, 'a'..='z' | '0'..='9' | '-') || is_emoji_char(c),
             SolansError::InvalidNameCharacter
         );
-        if b == b'-' {
+        if c == '-' {
             require!(!prev_hyphen, SolansError::InvalidNameHyphen);
             prev_hyphen = true;
         } else {
             prev_hyphen = false;
         }
     }
+    let first = first.ok_or_else(|| error!(SolansError::InvalidNameLength))?;
+    require!(first != '-' && last != '-', SolansError::InvalidNameHyphen);
     Ok(())
 }
 

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { address, none, some } from "@solana/kit";
-import { buildApp, type ContentFetcher, type Resolver } from "solans-resolver";
+import {
+  buildApp,
+  decodeDohResponse,
+  encodeDohQuery,
+  MemoryCache,
+  type ContentFetcher,
+  type Resolver,
+} from "solans-resolver";
 import type { NameRecord, Record as SolansRecord } from "@solans/sdk";
 
 const OWNER = address("2m5CoAk7ioZJbRYqHV9PJMNZN2gwpTPKQXR4GKyVifL7");
@@ -122,5 +129,79 @@ describe("hosting gateway (GET /site, §6)", () => {
     };
     const app = buildApp(fake({ contentRef: async () => "ipfs://QmCID" }), { fetchContent: throwing, gateways });
     expect((await app.inject({ method: "GET", url: "/site/alex.sol" })).statusCode).toBe(502);
+  });
+});
+
+describe("resolver cache (§13)", () => {
+  it("serves /resolve and /reverse from cache, refetching after TTL", async () => {
+    let now = 1_000_000;
+    const cache = new MemoryCache(() => now);
+    let resolves = 0;
+    let reverses = 0;
+    const app = buildApp(
+      fake({
+        resolve: async () => {
+          resolves++;
+          return sampleRecord;
+        },
+        reverseLookup: async () => {
+          reverses++;
+          return "alex.chain";
+        },
+      }),
+      { cache, cacheTtl: 30 },
+    );
+
+    await app.inject({ method: "GET", url: "/resolve/alex.chain" });
+    await app.inject({ method: "GET", url: "/resolve/alex.chain" });
+    expect(resolves).toBe(1); // 2nd hit cached
+    now += 31_000; // past the 30s TTL
+    await app.inject({ method: "GET", url: "/resolve/alex.chain" });
+    expect(resolves).toBe(2);
+
+    await app.inject({ method: "GET", url: `/reverse/${OWNER}` });
+    await app.inject({ method: "GET", url: `/reverse/${OWNER}` });
+    expect(reverses).toBe(1);
+  });
+});
+
+describe("binary DoH (RFC 8484, application/dns-message)", () => {
+  const recs = [{ key: "url", value: "https://alex.chain" }] as SolansRecord[];
+
+  it("answers a POST binary query with TXT records (NOERROR)", async () => {
+    const app = buildApp(fake({ getRecords: async () => recs }));
+    const res = await app.inject({
+      method: "POST",
+      url: "/dns-query",
+      headers: { "content-type": "application/dns-message" },
+      payload: Buffer.from(encodeDohQuery("alex.chain")),
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("application/dns-message");
+    const decoded = decodeDohResponse(new Uint8Array(res.rawPayload));
+    expect(decoded.rcode).toBe("NOERROR");
+    expect(decoded.answers[0].data).toEqual(["url=https://alex.chain"]);
+  });
+
+  it("answers a GET ?dns=<base64url> query, and NXDOMAIN for no records", async () => {
+    const app = buildApp(fake({ getRecords: async () => recs }));
+    const dns = Buffer.from(encodeDohQuery("alex.chain")).toString("base64url");
+    const ok = await app.inject({ method: "GET", url: `/dns-query?dns=${dns}` });
+    expect(decodeDohResponse(new Uint8Array(ok.rawPayload)).answers[0].data).toEqual(["url=https://alex.chain"]);
+
+    const empty = buildApp(fake({ getRecords: async () => [] }));
+    const nx = await empty.inject({
+      method: "POST",
+      url: "/dns-query",
+      headers: { "content-type": "application/dns-message" },
+      payload: Buffer.from(encodeDohQuery("nobody.sol")),
+    });
+    expect(decodeDohResponse(new Uint8Array(nx.rawPayload)).rcode).toBe("NXDOMAIN");
+  });
+
+  it("still serves the JSON DoH variant (?name=)", async () => {
+    const app = buildApp(fake({ getRecords: async () => recs }));
+    const res = await app.inject({ method: "GET", url: "/dns-query?name=alex.chain&type=TXT" });
+    expect(res.json().Answer[0].data).toBe("url=https://alex.chain");
   });
 });

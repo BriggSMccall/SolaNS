@@ -14,9 +14,11 @@
   "dependencies": {
     "@solana/kit": "^6.10.0",
     "@solans/sdk": "workspace:*",
+    "dns-packet": "^5.6.1",
     "fastify": "^5.2.0"
   },
   "devDependencies": {
+    "@types/dns-packet": "^5.6.5",
     "tsx": "^4.22.4"
   }
 }

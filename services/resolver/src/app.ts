@@ -8,6 +8,13 @@ import {
   type NameRecord,
   type Record as SolansRecord,
 } from "@solans/sdk";
+import { decodeDohQuery, encodeDohResponse } from "./doh.ts";
+import type { Cache } from "./cache.ts";
+
+export { MemoryCache } from "./cache.ts";
+export type { Cache } from "./cache.ts";
+export { decodeDohQuery, decodeDohResponse, encodeDohQuery, encodeDohResponse } from "./doh.ts";
+export type { DohQuery } from "./doh.ts";
 
 /** The read surface the service needs; `SolansClient` satisfies this. */
 export interface Resolver {
@@ -28,6 +35,10 @@ export interface BuildOpts {
   fetchContent?: ContentFetcher;
   /** IPFS/Arweave gateway bases (default: ipfs.io / arweave.net). */
   gateways?: Gateways;
+  /** Read-through cache (§13); omit for no caching (every request hits the RPC). */
+  cache?: Cache;
+  /** Cache TTL in seconds (default 30). */
+  cacheTtl?: number;
 }
 
 const defaultFetchContent: ContentFetcher = async (url) => {
@@ -72,24 +83,40 @@ export function buildApp(resolver: Resolver, opts: BuildOpts = {}): FastifyInsta
   const app = Fastify({ logger: false });
   const fetchContent = opts.fetchContent ?? defaultFetchContent;
   const gateways = opts.gateways ?? DEFAULT_GATEWAYS;
+  const cache = opts.cache;
+  const cacheTtl = opts.cacheTtl ?? 30;
+
+  /** Read-through cache (§13): JSON-serialize the value; no cache → direct fetch. */
+  async function cached<T>(key: string, produce: () => Promise<T>): Promise<T> {
+    if (!cache) return produce();
+    const hit = await cache.get(key);
+    if (hit !== null) return JSON.parse(hit) as T;
+    const value = await produce();
+    await cache.set(key, JSON.stringify(value), cacheTtl);
+    return value;
+  }
+  const recordsOf = (name: string) => cached(`records:${name}`, () => resolver.getRecords(name));
 
   app.get("/health", async () => ({ ok: true }));
 
   app.get<{ Params: { name: string } }>("/resolve/:name", async (req, reply) => {
-    let rec: NameRecord | null;
+    let body: ReturnType<typeof serialize> | null;
     try {
-      rec = await resolver.resolve(req.params.name);
+      body = await cached(`resolve:${req.params.name}`, async () => {
+        const rec = await resolver.resolve(req.params.name);
+        return rec ? serialize(req.params.name, rec) : null;
+      });
     } catch (e) {
       return reply.code(400).send({ error: (e as Error).message });
     }
-    if (!rec) return reply.code(404).send({ error: "not registered" });
-    return serialize(req.params.name, rec);
+    if (!body) return reply.code(404).send({ error: "not registered" });
+    return body;
   });
 
   app.get<{ Params: { pubkey: string } }>("/reverse/:pubkey", async (req, reply) => {
     let name: string | null;
     try {
-      name = await resolver.reverseLookup(address(req.params.pubkey));
+      name = await cached(`reverse:${req.params.pubkey}`, () => resolver.reverseLookup(address(req.params.pubkey)));
     } catch (e) {
       return reply.code(400).send({ error: (e as Error).message });
     }
@@ -97,13 +124,42 @@ export function buildApp(resolver: Resolver, opts: BuildOpts = {}): FastifyInsta
     return { pubkey: req.params.pubkey, name };
   });
 
-  app.get<{ Querystring: { name?: string; type?: string } }>("/dns-query", async (req, reply) => {
+  // RFC 8484 binary DoH bodies (`application/dns-message`) → raw Buffer.
+  app.addContentTypeParser("application/dns-message", { parseAs: "buffer" }, (_req, body, done) => done(null, body));
+
+  async function binaryDoh(queryBytes: Uint8Array, reply: import("fastify").FastifyReply) {
+    let q;
+    try {
+      q = decodeDohQuery(queryBytes);
+    } catch {
+      return reply.code(400).send({ error: "malformed DNS message" });
+    }
+    let records: SolansRecord[] = [];
+    try {
+      records = await recordsOf(q.name);
+    } catch {
+      /* unresolvable → NXDOMAIN (empty records) */
+    }
+    reply.header("content-type", "application/dns-message");
+    return reply.send(Buffer.from(encodeDohResponse(q, records)));
+  }
+
+  // DoH (§5.1/§13): GET ?dns=<base64url> or POST application/dns-message → binary
+  // RFC-8484; GET ?name=&type= (or an application/dns-json accept) → JSON variant.
+  app.post("/dns-query", async (req, reply) => binaryDoh(req.body as Uint8Array, reply));
+
+  app.get<{ Querystring: { name?: string; type?: string; dns?: string } }>("/dns-query", async (req, reply) => {
+    const accept = req.headers.accept ?? "";
+    if (req.query.dns || accept.includes("application/dns-message")) {
+      if (!req.query.dns) return reply.code(400).send({ error: "missing ?dns" });
+      return binaryDoh(new Uint8Array(Buffer.from(req.query.dns, "base64url")), reply);
+    }
     const name = req.query.name;
     if (!name) return reply.code(400).send({ error: "missing ?name" });
     const type = (req.query.type ?? "TXT").toUpperCase();
     let records: SolansRecord[];
     try {
-      records = await resolver.getRecords(name);
+      records = await recordsOf(name);
     } catch (e) {
       return reply.code(400).send({ error: (e as Error).message });
     }

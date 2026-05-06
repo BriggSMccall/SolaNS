@@ -12,6 +12,7 @@
     "@solana/kit": "^6.10.0",
     "@solans/client": "workspace:*",
     "@solans/sdk": "workspace:*",
+    "solans-keeper": "workspace:*",
     "solans-resolver": "workspace:*"
   },
   "devDependencies": {

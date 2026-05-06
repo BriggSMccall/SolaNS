@@ -67,6 +67,22 @@ importers:
         specifier: ^6.10.0
         version: 6.10.0(typescript@5.9.3)
 
+  services/keeper:
+    dependencies:
+      '@solana-program/token':
+        specifier: ^0.14.0
+        version: 0.14.0(@solana/kit@6.10.0(typescript@5.9.3))
+      '@solana/kit':
+        specifier: ^6.10.0
+        version: 6.10.0(typescript@5.9.3)
+      '@solans/sdk':
+        specifier: workspace:*
+        version: link:../../clients/sdk
+    devDependencies:
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
+
   services/resolver:
     dependencies:
       '@solana/kit':
@@ -106,6 +122,9 @@ importers:
       '@solans/sdk':
         specifier: workspace:*
         version: link:../clients/sdk
+      solans-keeper:
+        specifier: workspace:*
+        version: link:../services/keeper
       solans-resolver:
         specifier: workspace:*
         version: link:../services/resolver

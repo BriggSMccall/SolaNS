@@ -1,0 +1,22 @@
+{
+  "name": "solans-keeper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/keeper.ts",
+  "exports": {
+    ".": "./src/keeper.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@solana-program/token": "^0.14.0",
+    "@solana/kit": "^6.10.0",
+    "@solans/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.4"
+  }
+}

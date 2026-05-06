@@ -33,6 +33,41 @@ const BPS_DENOMINATOR = 10_000n;
 /** Loads a raw account by address. Lets the SDK run against an RPC or litesvm. */
 export type AccountFetcher = (address: Address) => Promise<MaybeEncodedAccount<Address>>;
 
+/** The price-tier fields of {@link Config} that {@link priceForLabel} reads. */
+type PriceTiers = Pick<Config, "price1" | "price2" | "price3" | "price4" | "price5plus" | "priceNumeric">;
+
+function priceForLen(cfg: PriceTiers, len: number): bigint {
+  switch (len) {
+    case 1:
+      return cfg.price1;
+    case 2:
+      return cfg.price2;
+    case 3:
+      return cfg.price3;
+    case 4:
+      return cfg.price4;
+    default:
+      return cfg.price5plus;
+  }
+}
+
+/**
+ * Annual price (in payment-mint base units) for a **validated** label — a pure
+ * mirror of `Config::price_for_label` (`state/config.rs`), applying the §9.2 premia:
+ * an emoji / non-ASCII label is a separate category at **2× the code-point length
+ * tier**; an all-digit label of ≤ 4 chars is the **numeric premium**; everything
+ * else uses the byte-length tier (= char-length for ASCII). Keep byte-identical to
+ * the on-chain logic — the keeper's delegation pre-check and the UI's price display
+ * both depend on it.
+ */
+export function priceForLabel(cfg: PriceTiers, label: string): bigint {
+  const codePoints = [...label];
+  const isAscii = codePoints.every((c) => c.codePointAt(0)! < 128);
+  if (!isAscii) return priceForLen(cfg, codePoints.length) * 2n;
+  if (label.length <= 4 && /^\d+$/.test(label)) return cfg.priceNumeric;
+  return priceForLen(cfg, label.length); // ASCII → byte-length === char-length
+}
+
 /**
  * High-level read API for SOLANS names (Technical Concept §5/§10):
  * `resolve` / `reverseLookup` / `getRecords` / `getAddress`. Decoupled from the
@@ -138,6 +173,18 @@ export class SolansClient {
     if (!cfg || cfg.solansRate === 0n) throw new Error("pay-in-$SOLANS is not configured");
     const gross = (usdcFee * cfg.solansRate) / SOLANS_RATE_SCALE;
     return (gross * (BPS_DENOMINATOR - BigInt(cfg.solansDiscountBps))) / BPS_DENOMINATOR;
+  }
+
+  /**
+   * Annual fee × `years` (payment-mint base units) to register/renew `label` —
+   * mirrors `Config::price_for_label` (length tiers + numeric premium + emoji 2×).
+   * Used by the auto-renew keeper to pre-check an owner's delegation and by the UI
+   * for price display. Pass the bare label (`"alex"`), not a dotted path.
+   */
+  async quoteName(label: string, years = 1): Promise<bigint> {
+    const cfg = await this.getConfig();
+    if (!cfg) throw new Error("registry config is not initialized");
+    return priceForLabel(cfg, label) * BigInt(years);
   }
 
   /**

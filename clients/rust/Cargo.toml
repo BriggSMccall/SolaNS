@@ -1,0 +1,23 @@
+[package]
+name = "solans-client"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Rust client for the SOLANS name service: name hashing, PDA derivation, account decoding, and resolution."
+repository = "https://github.com/BriggSMccall/SolaNS"
+
+[lib]
+name = "solans_client"
+
+[dependencies]
+solana-program = "3.0.0"
+solana-keccak-hasher = "3.1.0"
+borsh = "1"
+
+[dev-dependencies]
+borsh = "1"
+
+# Self-rooted: this crate is intentionally NOT a member of the program's Cargo
+# workspace (members = ["programs/*"]) so `anchor build` / SBF builds are untouched.
+# Run its tests directly: `cd clients/rust && cargo test`.
+[workspace]

@@ -1,0 +1,38 @@
+name: Verifiable build
+
+# Reproducible build of the program (§M8). Runs on demand and on release tags — not
+# on every push (the Docker build is heavy). Publishes the executable hash so the
+# deployed bytecode can be checked against this source tree.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  verifiable-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pin the program id (canonical declare_id)
+        run: |
+          mkdir -p target/deploy
+          cp solans-keypair.json target/deploy/solans-keypair.json
+
+      - name: Install solana-verify
+        run: cargo install solana-verify --locked
+
+      - name: Reproducible build + executable hash
+        run: |
+          solana-verify build --library-name solans
+          echo "## Verifiable build" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "solans.so sha256=$(solana-verify get-executable-hash target/deploy/solans.so)" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload verifiable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: solans-verifiable-so
+          path: target/deploy/solans.so

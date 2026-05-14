@@ -22,9 +22,9 @@ jobs:
       - name: Install solana-verify
         run: cargo install solana-verify --locked
 
-      - name: Reproducible build + executable hash
+      - name: Reproducible build + executable hash (pinned base image)
         run: |
-          solana-verify build --library-name solans
+          bash scripts/verify-build.sh
           echo "## Verifiable build" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "solans.so sha256=$(solana-verify get-executable-hash target/deploy/solans.so)" \

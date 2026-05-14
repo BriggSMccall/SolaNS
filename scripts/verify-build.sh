@@ -19,6 +19,11 @@ PROGRAM_NAME="solans"
 PROGRAM_ID="7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf"
 REPO_URL="${SOLANS_REPO_URL:-https://github.com/BriggSMccall/SolaNS}"
 RPC_URL="${1:-}"
+# Pin the verifiable-build base image to the program's Solana version (3.1.10). The
+# solana-verify *default* image ships an older Cargo (1.84) that can't parse the
+# program's `edition2024` transitive deps — this image's platform-tools toolchain
+# matches `rust-toolchain.toml` (1.89) + Solana 3.1.10. Override for a re-pin.
+BASE_IMAGE="${SOLANS_VERIFY_BASE_IMAGE:-solanafoundation/solana-verifiable-build:3.1.10}"
 
 here() { cd "$(dirname "$0")/.."; }
 here
@@ -27,10 +32,8 @@ need() { command -v "$1" >/dev/null 2>&1 || { echo "✗ missing prerequisite: $1
 need docker
 need solana-verify
 
-echo "▸ Reproducible build of '$PROGRAM_NAME' (solana-verify, pinned Docker toolchain)…"
-# Mirrors the program's pins (rust-toolchain.toml = 1.89, Anchor 1.0.2). If the
-# default base image's Solana differs, pass --base-image to match the deploy target.
-solana-verify build --library-name "$PROGRAM_NAME"
+echo "▸ Reproducible build of '$PROGRAM_NAME' (solana-verify, base image ${BASE_IMAGE})…"
+solana-verify build --library-name "$PROGRAM_NAME" --base-image "$BASE_IMAGE"
 
 echo
 echo "▸ Executable hash (publish this alongside each release):"

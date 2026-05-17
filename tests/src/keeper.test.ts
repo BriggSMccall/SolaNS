@@ -20,6 +20,7 @@ import {
   type Notifier,
   type ProcessDeps,
 } from "solans-keeper";
+import { buildKeeperMetrics } from "solans-keeper/metrics";
 import {
   fundedSigner,
   readName,
@@ -273,5 +274,20 @@ describe("keeper end-to-end against litesvm (§6.2)", () => {
     expect(result).toBe("renewed");
     expect(readName(env.svm, pda)!.expiresAt).toBe(expiresBefore + YEAR);
     expect(events[0]).toMatchObject({ type: "renewed", name: "alpha", expiresAt: expiresBefore + YEAR });
+  });
+});
+
+describe("keeper metrics (§13)", () => {
+  it("MetricsNotifier counts events by type into the Prometheus registry", async () => {
+    const { registry, notifier, sweeps } = buildKeeperMetrics();
+    await notifier.notify({ type: "renewed", name: "alex", expiresAt: 1n, signature: "sig" });
+    await notifier.notify({ type: "renewed", name: "bob", expiresAt: 2n, signature: "sig2" });
+    await notifier.notify({ type: "no-delegation", name: "carol", expiresAt: 3n });
+    sweeps.inc();
+
+    const out = registry.expose();
+    expect(out).toContain('solans_keeper_events_total{type="renewed"} 2');
+    expect(out).toContain('solans_keeper_events_total{type="no-delegation"} 1');
+    expect(out).toContain("solans_keeper_sweeps_total 1");
   });
 });

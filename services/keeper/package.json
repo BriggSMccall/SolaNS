@@ -5,7 +5,8 @@
   "type": "module",
   "main": "./src/keeper.ts",
   "exports": {
-    ".": "./src/keeper.ts"
+    ".": "./src/keeper.ts",
+    "./metrics": "./src/metrics.ts"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -14,6 +15,7 @@
   "dependencies": {
     "@solana-program/token": "^0.14.0",
     "@solana/kit": "^6.10.0",
+    "@solans/observability": "workspace:*",
     "@solans/sdk": "workspace:*"
   },
   "devDependencies": {

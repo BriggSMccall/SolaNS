@@ -166,4 +166,17 @@ describe("indexer HTTP service", () => {
     expect((await app.inject({ method: "GET", url: "/search" })).statusCode).toBe(400);
     expect((await app.inject({ method: "GET", url: "/health" })).json()).toEqual({ ok: true });
   });
+
+  it("GET /metrics exposes Prometheus event/batch/HTTP counters (§13)", async () => {
+    const app = buildApp();
+    await app.inject({ method: "POST", url: "/webhook", payload: [heliusRegisterTx("alex")] });
+
+    const res = await app.inject({ method: "GET", url: "/metrics" });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/plain; version=0.0.4");
+    const body = res.payload;
+    expect(body).toContain('solans_index_events_total{type="register"} 1');
+    expect(body).toContain("solans_webhook_batches_total 1");
+    expect(body).toMatch(/solans_http_requests_total\{[^}]*route="\/webhook"[^}]*\} 1/);
+  });
 });

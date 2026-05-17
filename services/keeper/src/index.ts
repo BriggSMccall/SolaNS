@@ -14,6 +14,7 @@
  *   KEEPER_YEARS         term to renew for (default 1)
  *   KEEPER_NOTIFY_WINDOW heads-up window in days for "expiring-soon" (default 60)
  *   NOTIFY_WEBHOOK_URL   optional webhook to POST events to (in addition to the console)
+ *   KEEPER_METRICS_PORT  optional port for a Prometheus /metrics server (§13; 0/unset = off)
  */
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -55,6 +56,7 @@ import {
   type Notifier,
   type ProcessDeps,
 } from "./keeper.ts";
+import { buildKeeperMetrics, startMetricsServer } from "./metrics.ts";
 
 const DAY = 86_400n;
 const RENEWAL_WINDOW_SECONDS = 2_592_000n; // 30 days — must match constants.rs
@@ -102,6 +104,16 @@ async function main() {
 
   const sinks: Notifier[] = [new ConsoleNotifier()];
   if (process.env.NOTIFY_WEBHOOK_URL) sinks.push(new WebhookNotifier(process.env.NOTIFY_WEBHOOK_URL));
+
+  // Observability (§13): expose /metrics on KEEPER_METRICS_PORT (opt-in). The metrics
+  // sink is just another Notifier folded into the MultiNotifier — keeper.ts stays pure.
+  const metricsPort = Number(process.env.KEEPER_METRICS_PORT ?? 0);
+  const metrics = metricsPort > 0 ? buildKeeperMetrics() : null;
+  if (metrics) {
+    sinks.push(metrics.notifier);
+    startMetricsServer(metrics.registry, metricsPort);
+    console.error(`keeper: metrics on http://0.0.0.0:${metricsPort}/metrics`);
+  }
   const notifier = new MultiNotifier(sinks);
 
   console.error(
@@ -176,6 +188,7 @@ async function main() {
       years,
     };
     const tally = await runOnce(watchlist, deps);
+    metrics?.sweeps.inc();
     console.error(`keeper: sweep done — renewed ${tally.renewed}, skipped ${tally.skipped}, failed ${tally.failed}`);
   }
 

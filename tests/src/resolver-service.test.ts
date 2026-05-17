@@ -205,3 +205,22 @@ describe("binary DoH (RFC 8484, application/dns-message)", () => {
     expect(res.json().Answer[0].data).toBe("url=https://alex.chain");
   });
 });
+
+describe("metrics (§13 Prometheus)", () => {
+  it("GET /metrics exposes per-route request counts, latency, and cache hit/miss", async () => {
+    const app = buildApp(fake({ resolve: async () => sampleRecord }), { cache: new MemoryCache() });
+    await app.inject({ method: "GET", url: "/resolve/alex.chain" }); // miss
+    await app.inject({ method: "GET", url: "/resolve/alex.chain" }); // hit
+
+    const res = await app.inject({ method: "GET", url: "/metrics" });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/plain; version=0.0.4");
+    const body = res.payload;
+    // Route patterns (not concrete paths) keep cardinality bounded.
+    expect(body).toMatch(/solans_http_requests_total\{[^}]*route="\/resolve\/:name"[^}]*\} 2/);
+    expect(body).toContain('solans_resolver_cache_total{result="hit"} 1');
+    expect(body).toContain('solans_resolver_cache_total{result="miss"} 1');
+    expect(body).toContain("solans_http_request_duration_seconds_bucket");
+    expect(body).toContain("solans_http_request_duration_seconds_count");
+  });
+});

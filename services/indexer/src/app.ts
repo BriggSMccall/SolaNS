@@ -8,7 +8,8 @@
  */
 import Fastify, { type FastifyInstance } from "fastify";
 import { address, AccountRole, getBase58Encoder, type Address } from "@solana/kit";
-import { parseSolansInstruction, type RawInstruction } from "./parse.ts";
+import { CONTENT_TYPE as METRICS_CONTENT_TYPE, Registry } from "@solans/observability";
+import { parseSolansInstruction, type IndexEvent, type RawInstruction } from "./parse.ts";
 import { applyEvent, MemoryStore, type EventMeta, type IndexStore } from "./store.ts";
 
 export { applyEvent, MemoryStore } from "./store.ts";
@@ -53,8 +54,15 @@ function rawInstructionsOf(tx: HeliusTx): RawInstruction[] {
   return out;
 }
 
-/** Decode + apply every SOLANS instruction in a batch of Helius txs. Returns the count applied. */
-export async function ingestHeliusTxs(store: IndexStore, txs: HeliusTx[]): Promise<number> {
+/**
+ * Decode + apply every SOLANS instruction in a batch of Helius txs. Returns the count
+ * applied. `onApplied` (optional) fires per applied event — used for metrics.
+ */
+export async function ingestHeliusTxs(
+  store: IndexStore,
+  txs: HeliusTx[],
+  onApplied?: (ev: IndexEvent) => void,
+): Promise<number> {
   let applied = 0;
   for (const tx of txs) {
     const meta: EventMeta = { sig: tx.signature, slot: tx.slot, ts: tx.timestamp };
@@ -62,6 +70,7 @@ export async function ingestHeliusTxs(store: IndexStore, txs: HeliusTx[]): Promi
       const ev = parseSolansInstruction(raw);
       if (ev) {
         await applyEvent(store, ev, meta);
+        onApplied?.(ev);
         applied += 1;
       }
     }
@@ -81,13 +90,35 @@ export async function ingestHeliusTxs(store: IndexStore, txs: HeliusTx[]): Promi
 export function buildApp(store: IndexStore = new MemoryStore()): FastifyInstance {
   const app = Fastify({ logger: false });
 
+  // Observability (§13): indexed events by type, webhook batches, HTTP latency.
+  const registry = new Registry();
+  const httpRequests = registry.counter("solans_http_requests_total", "Indexer HTTP requests handled");
+  const httpDuration = registry.histogram(
+    "solans_http_request_duration_seconds",
+    "Indexer HTTP request duration in seconds",
+  );
+  const indexEvents = registry.counter("solans_index_events_total", "Indexed SOLANS instructions by type");
+  const webhookBatches = registry.counter("solans_webhook_batches_total", "Helius webhook batches received");
+
+  app.addHook("onResponse", async (req, reply) => {
+    const route = (req.routeOptions?.url ?? "unknown").split("?")[0];
+    httpRequests.inc(1, { method: req.method, route, status: reply.statusCode });
+    httpDuration.observe(reply.elapsedTime / 1000, { method: req.method, route });
+  });
+
+  app.get("/metrics", async (_req, reply) => {
+    reply.header("content-type", METRICS_CONTENT_TYPE);
+    return registry.expose();
+  });
+
   app.get("/health", async () => ({ ok: true }));
 
   app.post("/webhook", async (req, reply) => {
     const body = req.body;
     const txs = (Array.isArray(body) ? body : [body]) as HeliusTx[];
     try {
-      const indexed = await ingestHeliusTxs(store, txs);
+      webhookBatches.inc();
+      const indexed = await ingestHeliusTxs(store, txs, (ev) => indexEvents.inc(1, { type: ev.kind }));
       return { indexed };
     } catch (e) {
       return reply.code(400).send({ error: (e as Error).message });

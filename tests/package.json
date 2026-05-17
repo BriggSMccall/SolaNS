@@ -11,6 +11,7 @@
     "@solana-program/token": "^0.14.0",
     "@solana/kit": "^6.10.0",
     "@solans/client": "workspace:*",
+    "@solans/observability": "workspace:*",
     "@solans/sdk": "workspace:*",
     "solans-indexer": "workspace:*",
     "solans-keeper": "workspace:*",

@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { address, unwrapOption, type Address } from "@solana/kit";
+import { CONTENT_TYPE as METRICS_CONTENT_TYPE, Registry } from "@solans/observability";
 import {
   DEFAULT_GATEWAYS,
   hostingUrl,
@@ -86,11 +87,35 @@ export function buildApp(resolver: Resolver, opts: BuildOpts = {}): FastifyInsta
   const cache = opts.cache;
   const cacheTtl = opts.cacheTtl ?? 30;
 
+  // Observability (§13): per-route request counts + latency, and cache hit/miss.
+  const registry = new Registry();
+  const httpRequests = registry.counter("solans_http_requests_total", "Resolver HTTP requests handled");
+  const httpDuration = registry.histogram(
+    "solans_http_request_duration_seconds",
+    "Resolver HTTP request duration in seconds",
+  );
+  const cacheOps = registry.counter("solans_resolver_cache_total", "Resolver read-through cache lookups");
+
+  app.addHook("onResponse", async (req, reply) => {
+    const route = (req.routeOptions?.url ?? "unknown").split("?")[0];
+    httpRequests.inc(1, { method: req.method, route, status: reply.statusCode });
+    httpDuration.observe(reply.elapsedTime / 1000, { method: req.method, route });
+  });
+
+  app.get("/metrics", async (_req, reply) => {
+    reply.header("content-type", METRICS_CONTENT_TYPE);
+    return registry.expose();
+  });
+
   /** Read-through cache (§13): JSON-serialize the value; no cache → direct fetch. */
   async function cached<T>(key: string, produce: () => Promise<T>): Promise<T> {
     if (!cache) return produce();
     const hit = await cache.get(key);
-    if (hit !== null) return JSON.parse(hit) as T;
+    if (hit !== null) {
+      cacheOps.inc(1, { result: "hit" });
+      return JSON.parse(hit) as T;
+    }
+    cacheOps.inc(1, { result: "miss" });
     const value = await produce();
     await cache.set(key, JSON.stringify(value), cacheTtl);
     return value;

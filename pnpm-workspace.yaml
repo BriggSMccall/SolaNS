@@ -3,6 +3,7 @@ packages:
   - "cli"
   - "services/*"
   - "tests"
+  - "web"
 allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:

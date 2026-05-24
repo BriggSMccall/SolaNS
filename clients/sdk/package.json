@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@solana-program/token": "^0.14.0",
     "@solana/kit": "^6.10.0",
     "@solans/client": "workspace:*"
   }

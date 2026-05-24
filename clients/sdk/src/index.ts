@@ -4,4 +4,5 @@ export * from "./client";
 export * from "./hosting";
 export * from "./pinata";
 export * from "./records";
+export * from "./tx";
 export * from "@solans/client";

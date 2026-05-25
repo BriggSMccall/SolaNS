@@ -11,12 +11,22 @@
 import { generateKeyPairSigner, type Address, type Instruction, type TransactionSigner } from "@solana/kit";
 import { findAssociatedTokenPda, TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
 import {
+  findConfigPda,
+  findListing,
   findNameRecordPda,
+  findOffer,
+  getAcceptOfferInstruction,
+  getBuyNameInstruction,
+  getCancelListingInstruction,
+  getCancelOfferInstruction,
+  getListNameInstruction,
+  getMakeOfferInstruction,
   getRegisterNameInstructionAsync,
   getRenewNameInstructionAsync,
   getSetHostingInstruction,
   getTokenizeNameInstructionAsync,
   getUpdateRecordInstruction,
+  nameInfo,
   nameParts,
   type Config,
 } from "@solans/client";
@@ -159,4 +169,107 @@ export async function buildSetHostingInstructions(
       hostingRef: args.hostingRef,
     }),
   ];
+}
+
+// --- Marketplace (§9.1): non-custodial, SOL-denominated fixed-price + offers --------
+const DEFAULT_LISTING_SECONDS = BigInt(30 * 86_400); // 30 days
+
+/** List a (non-tokenized) name for sale at `priceLamports` SOL. Owner stays owner until sold. */
+export async function buildListInstructions(args: {
+  owner: TransactionSigner;
+  name: string;
+  priceLamports: bigint;
+  durationSeconds?: bigint;
+}): Promise<Instruction[]> {
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(args.name).hash });
+  const [listing] = await findListing(args.name);
+  return [
+    getListNameInstruction({
+      owner: args.owner,
+      nameRecord,
+      listing,
+      price: args.priceLamports,
+      durationSeconds: args.durationSeconds ?? DEFAULT_LISTING_SECONDS,
+    }),
+  ];
+}
+
+/** Cancel a listing (seller anytime; anyone once expired). `seller` is the listing's seller. */
+export async function buildCancelListingInstructions(args: {
+  canceller: TransactionSigner;
+  name: string;
+  seller: Address;
+}): Promise<Instruction[]> {
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(args.name).hash });
+  const [listing] = await findListing(args.name);
+  return [getCancelListingInstruction({ canceller: args.canceller, seller: args.seller, nameRecord, listing })];
+}
+
+/** Buy a listed name: pays `expectedPrice` lamports to the seller + the marketplace fee. */
+export async function buildBuyInstructions(args: {
+  buyer: TransactionSigner;
+  name: string;
+  seller: Address;
+  expectedPrice: bigint;
+  /** `Config.solTreasury` (the native-SOL fee recipient). */
+  solTreasury: Address;
+}): Promise<Instruction[]> {
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(args.name).hash });
+  const [listing] = await findListing(args.name);
+  const [config] = await findConfigPda();
+  return [
+    getBuyNameInstruction({
+      buyer: args.buyer,
+      seller: args.seller,
+      solTreasury: args.solTreasury,
+      config,
+      nameRecord,
+      listing,
+      expectedPrice: args.expectedPrice,
+    }),
+  ];
+}
+
+/** Make a SOL offer on a name (escrows `amountLamports` in the Offer PDA). */
+export async function buildMakeOfferInstructions(args: {
+  buyer: TransactionSigner;
+  name: string;
+  amountLamports: bigint;
+  durationSeconds?: bigint;
+}): Promise<Instruction[]> {
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(args.name).hash });
+  const [offer] = await findOffer(args.name, args.buyer.address);
+  return [
+    getMakeOfferInstruction({
+      buyer: args.buyer,
+      nameRecord,
+      offer,
+      amount: args.amountLamports,
+      durationSeconds: args.durationSeconds ?? DEFAULT_LISTING_SECONDS,
+    }),
+  ];
+}
+
+/** Accept `buyer`'s escrowed offer (owner): pays the owner from escrow + flips ownership. */
+export async function buildAcceptOfferInstructions(args: {
+  owner: TransactionSigner;
+  name: string;
+  buyer: Address;
+  solTreasury: Address;
+}): Promise<Instruction[]> {
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(args.name).hash });
+  const [offer] = await findOffer(args.name, args.buyer);
+  const [config] = await findConfigPda();
+  return [getAcceptOfferInstruction({ owner: args.owner, buyer: args.buyer, solTreasury: args.solTreasury, config, nameRecord, offer })];
+}
+
+/** Cancel/reclaim an offer (bidder, owner-reject, or anyone after expiry). Refunds the escrow. */
+export async function buildCancelOfferInstructions(args: {
+  canceller: TransactionSigner;
+  name: string;
+  buyer: Address;
+}): Promise<Instruction[]> {
+  const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo(args.name).hash });
+  const [offer] = await findOffer(args.name, args.buyer);
+  return [getCancelOfferInstruction({ canceller: args.canceller, buyer: args.buyer, nameRecord, offer })];
 }

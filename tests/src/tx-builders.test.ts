@@ -1,12 +1,18 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { generateKeyPairSigner, unwrapOption } from "@solana/kit";
 import {
+  buildAcceptOfferInstructions,
+  buildBuyInstructions,
+  buildCancelListingInstructions,
+  buildListInstructions,
+  buildMakeOfferInstructions,
   buildRegisterInstructions,
   buildRenewInstructions,
   buildSetHostingInstructions,
   buildUpdateRecordInstructions,
+  findListing,
 } from "@solans/sdk";
-import { readName, readMintSupply, send, setupEnv, type TestEnv } from "./harness.ts";
+import { accountExists, fundedSigner, readName, readMintSupply, send, setupEnv, type TestEnv } from "./harness.ts";
 
 const YEAR = 31_536_000n;
 
@@ -70,5 +76,55 @@ describe("SDK write-instruction builders (web ⇄ on-chain parity)", () => {
     expect(nftMint).toBeUndefined();
     await send(env.svm, env.payer, instructions);
     expect(readName(env.svm, nameRecord)!.owner).toBe(other.address);
+  });
+});
+
+describe("SDK marketplace builders (§9.1, web ⇄ on-chain parity)", () => {
+  let env: TestEnv;
+  let cfg: { paymentMint: typeof env.mint; treasuryTokenAccount: typeof env.treasury; stakingVault: typeof env.stakingVault; burnVault: typeof env.burnVault };
+
+  beforeAll(async () => {
+    env = await setupEnv();
+    cfg = { paymentMint: env.mint, treasuryTokenAccount: env.treasury, stakingVault: env.stakingVault, burnVault: env.burnVault };
+  });
+
+  // Names must be PDA-native (not tokenized) to use the SOL marketplace.
+  const registerPlain = async (name: string) => {
+    const { instructions, nameRecord } = await buildRegisterInstructions({ payer: env.payer, cfg, name, withNft: false });
+    await send(env.svm, env.payer, instructions);
+    return nameRecord;
+  };
+
+  it("list → buy flips ownership and closes the listing", async () => {
+    const nameRecord = await registerPlain("forsale.sol");
+    const buyer = await fundedSigner(env.svm, 50n);
+    const price = 1_000_000_000n; // 1 SOL
+
+    await send(env.svm, env.payer, await buildListInstructions({ owner: env.payer, name: "forsale.sol", priceLamports: price }));
+    await send(env.svm, buyer, await buildBuyInstructions({ buyer, name: "forsale.sol", seller: env.payer.address, expectedPrice: price, solTreasury: env.solTreasury }));
+
+    expect(readName(env.svm, nameRecord)!.owner).toBe(buyer.address);
+    const [listing] = await findListing("forsale.sol");
+    expect(accountExists(env.svm, listing)).toBe(false);
+  });
+
+  it("cancel listing leaves the name with the seller", async () => {
+    const nameRecord = await registerPlain("unlisted.sol");
+    await send(env.svm, env.payer, await buildListInstructions({ owner: env.payer, name: "unlisted.sol", priceLamports: 2_000_000_000n }));
+    await send(env.svm, env.payer, await buildCancelListingInstructions({ canceller: env.payer, name: "unlisted.sol", seller: env.payer.address }));
+
+    const [listing] = await findListing("unlisted.sol");
+    expect(accountExists(env.svm, listing)).toBe(false);
+    expect(readName(env.svm, nameRecord)!.owner).toBe(env.payer.address);
+  });
+
+  it("make offer → accept transfers the name to the bidder", async () => {
+    const nameRecord = await registerPlain("offered.sol");
+    const bidder = await fundedSigner(env.svm, 50n);
+
+    await send(env.svm, bidder, await buildMakeOfferInstructions({ buyer: bidder, name: "offered.sol", amountLamports: 1_500_000_000n }));
+    await send(env.svm, env.payer, await buildAcceptOfferInstructions({ owner: env.payer, name: "offered.sol", buyer: bidder.address, solTreasury: env.solTreasury }));
+
+    expect(readName(env.svm, nameRecord)!.owner).toBe(bidder.address);
   });
 });

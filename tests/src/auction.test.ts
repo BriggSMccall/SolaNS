@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { unwrapOption, type Address } from "@solana/kit";
+import { findAssociatedTokenPda, TOKEN_PROGRAM_ADDRESS } from "@solana-program/token";
+import { findAuction, findNameRecordPda, getSettleAuctionInstructionAsync, nameInfo } from "@solans/sdk";
 import {
   accountExists,
   bid,
@@ -8,12 +10,14 @@ import {
   fundedSigner,
   initBurnPool,
   listName,
+  logsOf,
   mintTokens,
   readAuction,
   readMintSupply,
   readName,
   readTokenAmount,
   registerName,
+  sendExpectingFailure,
   setSolansParams,
   settleAuction,
   setupEnv,
@@ -142,6 +146,40 @@ describe("§9.1 English auctions ($SOLANS)", () => {
     expect(readTokenAmount(env.svm, sellerAta)!).toBe(2000n - fee); // 1960
     expect(supplyBefore - readMintSupply(env.svm, solansMint)!).toBe(fee); // burned
     expect(accountExists(env.svm, bidVault)).toBe(false); // vault closed
+  });
+
+  it("rejects a settler redirecting the seller's proceeds to a non-seller account (audit H-1)", async () => {
+    const env = await setupEnv();
+    const solansMint = await enableSolans(env);
+    await registerName(env, "foo");
+    await mintTokens(env, solansMint, env.payer.address, 0n); // seller's real $SOLANS ATA
+    const t0 = unixNow(env.svm);
+    await startAuction(env, "foo", solansMint, { reserve: 1000n, durationSeconds: 1000n });
+    const winner = await makeBidder(env, solansMint, 5000n);
+    await bid(env, "foo", solansMint, winner.signer, 2000n);
+    warpToUnixTimestamp(env.svm, t0 + 2000n);
+
+    // A malicious settler tries to pass its OWN $SOLANS account as the seller payout.
+    const attacker = await makeBidder(env, solansMint, 0n);
+    const [nameRecord] = await findNameRecordPda({ nameHash: nameInfo("foo").hash });
+    const [auction] = await findAuction("foo");
+    const auc = readAuction(env.svm, auction)!;
+    const [bidVault] = await findAssociatedTokenPda({ owner: auction, mint: solansMint, tokenProgram: TOKEN_PROGRAM_ADDRESS });
+    const ix = await getSettleAuctionInstructionAsync({
+      settler: attacker.signer,
+      seller: auc.seller,
+      sellerSolansAccount: attacker.ata, // NOT the seller's account
+      nameRecord,
+      auction,
+      bidVault,
+      solansMint,
+    });
+    const failure = await sendExpectingFailure(env.svm, attacker.signer, [ix]);
+    // Anchor's token::authority = seller constraint rejects it.
+    expect(logsOf(failure)).toMatch(/ConstraintTokenOwner|owner constraint|2015/);
+    // And the legitimate settle still works to the real seller.
+    await settleAuction(env, "foo", solansMint);
+    expect(readName(env.svm, await findNameRecordPda({ nameHash: nameInfo("foo").hash }).then((r) => r[0]))!.owner).toBe(winner.signer.address);
   });
 
   it("settles a no-bid auction by just unfreezing the name", async () => {

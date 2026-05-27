@@ -141,7 +141,12 @@ export type SettleAuctionAsyncInput<
   settler: TransactionSigner<TAccountSettler>;
   config?: Address<TAccountConfig>;
   seller: Address<TAccountSeller>;
-  /** Seller's `$SOLANS` account; receives the winning bid (minus fee). Required when there is a winner. */
+  /**
+   * Seller's `$SOLANS` account; receives the winning bid (minus fee). Required when
+   * there is a winner. `token::authority = seller` (== `auction.seller`) pins the
+   * payout to the real seller — without it, a permissionless settler could pass its
+   * own account and redirect the proceeds (audit H-1).
+   */
   sellerSolansAccount?: Address<TAccountSellerSolansAccount>;
   nameRecord: Address<TAccountNameRecord>;
   auction: Address<TAccountAuction>;
@@ -263,7 +268,12 @@ export type SettleAuctionInput<
   settler: TransactionSigner<TAccountSettler>;
   config: Address<TAccountConfig>;
   seller: Address<TAccountSeller>;
-  /** Seller's `$SOLANS` account; receives the winning bid (minus fee). Required when there is a winner. */
+  /**
+   * Seller's `$SOLANS` account; receives the winning bid (minus fee). Required when
+   * there is a winner. `token::authority = seller` (== `auction.seller`) pins the
+   * payout to the real seller — without it, a permissionless settler could pass its
+   * own account and redirect the proceeds (audit H-1).
+   */
   sellerSolansAccount?: Address<TAccountSellerSolansAccount>;
   nameRecord: Address<TAccountNameRecord>;
   auction: Address<TAccountAuction>;
@@ -375,7 +385,12 @@ export type ParsedSettleAuctionInstruction<
     settler: TAccountMetas[0];
     config: TAccountMetas[1];
     seller: TAccountMetas[2];
-    /** Seller's `$SOLANS` account; receives the winning bid (minus fee). Required when there is a winner. */
+    /**
+     * Seller's `$SOLANS` account; receives the winning bid (minus fee). Required when
+     * there is a winner. `token::authority = seller` (== `auction.seller`) pins the
+     * payout to the real seller — without it, a permissionless settler could pass its
+     * own account and redirect the proceeds (audit H-1).
+     */
     sellerSolansAccount?: TAccountMetas[3] | undefined;
     nameRecord: TAccountMetas[4];
     auction: TAccountMetas[5];

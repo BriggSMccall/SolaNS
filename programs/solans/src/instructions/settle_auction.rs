@@ -21,10 +21,14 @@ pub struct SettleAuction<'info> {
     #[account(mut, address = auction.seller @ SolansError::NotSeller)]
     pub seller: SystemAccount<'info>,
 
-    /// Seller's `$SOLANS` account; receives the winning bid (minus fee). Required when there is a winner.
+    /// Seller's `$SOLANS` account; receives the winning bid (minus fee). Required when
+    /// there is a winner. `token::authority = seller` (== `auction.seller`) pins the
+    /// payout to the real seller — without it, a permissionless settler could pass its
+    /// own account and redirect the proceeds (audit H-1).
     #[account(
         mut,
         token::mint = solans_mint,
+        token::authority = seller,
         token::token_program = token_program,
     )]
     pub seller_solans_account: Option<Box<InterfaceAccount<'info, TokenAccount>>>,

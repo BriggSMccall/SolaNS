@@ -39,6 +39,11 @@ pub fn handler(
 ) -> Result<()> {
     require!(min_years >= 1 && min_years <= max_years, SolansError::InvalidYears);
     require!(grace_period_seconds >= 0, SolansError::InvalidYears);
+    // Every tier must be priced (a zero would let names register/renew for free — audit M-1).
+    require!(
+        price_1 > 0 && price_2 > 0 && price_3 > 0 && price_4 > 0 && price_5plus > 0 && price_numeric > 0,
+        SolansError::InvalidPrice
+    );
     require!(marketplace_fee_bps <= MAX_FEE_BPS, SolansError::InvalidFeeBps);
     require!(
         (staking_fee_bps as u32 + referral_fee_bps as u32 + burn_fee_bps as u32)

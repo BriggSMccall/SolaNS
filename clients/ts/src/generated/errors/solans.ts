@@ -80,32 +80,34 @@ export const SOLANS_ERROR__OFFER_EXPIRED = 0x178e; // 6030
 export const SOLANS_ERROR__NOT_OFFERER = 0x178f; // 6031
 /** InvalidFeeSplit: Fee-split basis points must sum to less than 10000 */
 export const SOLANS_ERROR__INVALID_FEE_SPLIT = 0x1790; // 6032
+/** InvalidPrice: Every registration price tier must be greater than zero */
+export const SOLANS_ERROR__INVALID_PRICE = 0x1791; // 6033
 /** InsufficientStake: Insufficient staked balance */
-export const SOLANS_ERROR__INSUFFICIENT_STAKE = 0x1791; // 6033
+export const SOLANS_ERROR__INSUFFICIENT_STAKE = 0x1792; // 6034
 /** StakeMintMismatch: Token account mint does not match the staking pool */
-export const SOLANS_ERROR__STAKE_MINT_MISMATCH = 0x1792; // 6034
+export const SOLANS_ERROR__STAKE_MINT_MISMATCH = 0x1793; // 6035
 /** SolansNotConfigured: Pay-in-$SOLANS is not configured (set the mint, rate, and discount) */
-export const SOLANS_ERROR__SOLANS_NOT_CONFIGURED = 0x1793; // 6035
+export const SOLANS_ERROR__SOLANS_NOT_CONFIGURED = 0x1794; // 6036
 /** InsufficientBurnVault: Burn vault has insufficient balance for this buyback */
-export const SOLANS_ERROR__INSUFFICIENT_BURN_VAULT = 0x1794; // 6036
+export const SOLANS_ERROR__INSUFFICIENT_BURN_VAULT = 0x1795; // 6037
 /** InvalidDiscount: Discount basis points must be less than 10000 */
-export const SOLANS_ERROR__INVALID_DISCOUNT = 0x1795; // 6037
+export const SOLANS_ERROR__INVALID_DISCOUNT = 0x1796; // 6038
 /** AuctionEnded: Auction has ended */
-export const SOLANS_ERROR__AUCTION_ENDED = 0x1796; // 6038
+export const SOLANS_ERROR__AUCTION_ENDED = 0x1797; // 6039
 /** AuctionActive: Auction is still active */
-export const SOLANS_ERROR__AUCTION_ACTIVE = 0x1797; // 6039
+export const SOLANS_ERROR__AUCTION_ACTIVE = 0x1798; // 6040
 /** BidTooLow: Bid is below the reserve or the minimum increment */
-export const SOLANS_ERROR__BID_TOO_LOW = 0x1798; // 6040
+export const SOLANS_ERROR__BID_TOO_LOW = 0x1799; // 6041
 /** AuctionHasBids: Auction already has bids and cannot be cancelled */
-export const SOLANS_ERROR__AUCTION_HAS_BIDS = 0x1799; // 6041
+export const SOLANS_ERROR__AUCTION_HAS_BIDS = 0x179a; // 6042
 /** SelfBid: Seller cannot bid on their own auction */
-export const SOLANS_ERROR__SELF_BID = 0x179a; // 6042
+export const SOLANS_ERROR__SELF_BID = 0x179b; // 6043
 /** WrongRefundAccount: Refund account does not belong to the current highest bidder */
-export const SOLANS_ERROR__WRONG_REFUND_ACCOUNT = 0x179b; // 6043
+export const SOLANS_ERROR__WRONG_REFUND_ACCOUNT = 0x179c; // 6044
 /** NameExpired: Name has expired and does not resolve */
-export const SOLANS_ERROR__NAME_EXPIRED = 0x179c; // 6044
+export const SOLANS_ERROR__NAME_EXPIRED = 0x179d; // 6045
 /** AutoRenewTooEarly: Name is not yet within the auto-renew window */
-export const SOLANS_ERROR__AUTO_RENEW_TOO_EARLY = 0x179d; // 6045
+export const SOLANS_ERROR__AUTO_RENEW_TOO_EARLY = 0x179e; // 6046
 
 export type SolansError =
   | typeof SOLANS_ERROR__AUCTION_ACTIVE
@@ -123,6 +125,7 @@ export type SolansError =
   | typeof SOLANS_ERROR__INVALID_NAME_HYPHEN
   | typeof SOLANS_ERROR__INVALID_NAME_LENGTH
   | typeof SOLANS_ERROR__INVALID_NFT_MINT
+  | typeof SOLANS_ERROR__INVALID_PRICE
   | typeof SOLANS_ERROR__INVALID_TLD
   | typeof SOLANS_ERROR__INVALID_TREASURY
   | typeof SOLANS_ERROR__INVALID_YEARS
@@ -173,6 +176,7 @@ if (process.env["NODE_ENV"] !== "production") {
     [SOLANS_ERROR__INVALID_NAME_HYPHEN]: `Invalid hyphen position (no leading, trailing, or consecutive hyphens)`,
     [SOLANS_ERROR__INVALID_NAME_LENGTH]: `Name length must be between 1 and 63 characters`,
     [SOLANS_ERROR__INVALID_NFT_MINT]: `Provided mint is not this name's NFT`,
+    [SOLANS_ERROR__INVALID_PRICE]: `Every registration price tier must be greater than zero`,
     [SOLANS_ERROR__INVALID_TLD]: `Unsupported TLD`,
     [SOLANS_ERROR__INVALID_TREASURY]: `Treasury token account does not match config`,
     [SOLANS_ERROR__INVALID_YEARS]: `Registration term (years) is out of the allowed range`,

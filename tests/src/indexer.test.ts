@@ -103,6 +103,25 @@ describe("applyEvent + MemoryStore", () => {
     expect(await store.watchlist()).toEqual([]);
   });
 
+  it("tracks listings: list → /listings, then buy clears it + reassigns owner", async () => {
+    const store = new MemoryStore();
+    await applyEvent(store, reg, { ts: 1000 });
+    await applyEvent(store, { kind: "list", nameRecord: addr(3), seller: addr(1), priceLamports: "1500000000" }, { ts: 1100 });
+    let listed = await store.listings();
+    expect(listed.map((e) => e.fullName)).toEqual(["alex.sol"]);
+    expect(listed[0].listed?.priceLamports).toBe("1500000000");
+
+    await applyEvent(store, { kind: "buy", nameRecord: addr(3), newOwner: addr(8) }, { ts: 1200 });
+    expect(await store.listings()).toEqual([]); // no longer listed
+    expect((await store.getByName("alex.sol"))?.owner).toBe(addr(8)); // buyer owns it
+
+    // a fresh list then cancel
+    await applyEvent(store, { kind: "list", nameRecord: addr(3), seller: addr(8), priceLamports: "2000000000" }, {});
+    expect((await store.listings()).length).toBe(1);
+    await applyEvent(store, { kind: "unlist", nameRecord: addr(3) }, {});
+    expect(await store.listings()).toEqual([]);
+  });
+
   it("builds a subdomain full name from its indexed parent", async () => {
     const store = new MemoryStore();
     await applyEvent(store, reg, { ts: 1000 });

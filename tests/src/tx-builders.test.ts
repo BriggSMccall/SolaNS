@@ -2,17 +2,50 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { generateKeyPairSigner, unwrapOption } from "@solana/kit";
 import {
   buildAcceptOfferInstructions,
+  buildBidInstructions,
+  buildBurnNameInstructions,
   buildBuyInstructions,
   buildCancelListingInstructions,
+  buildClaimRewardsInstructions,
   buildListInstructions,
+  buildLockTransferInstructions,
   buildMakeOfferInstructions,
+  buildRedeemInstructions,
   buildRegisterInstructions,
   buildRenewInstructions,
+  buildRevokeSubdomainInstructions,
+  buildSetControllerInstructions,
   buildSetHostingInstructions,
+  buildSetReverseInstructions,
+  buildStakeInstructions,
+  buildStartAuctionInstructions,
+  buildTokenizeInstructions,
+  buildTransferInstructions,
   buildUpdateRecordInstructions,
+  buildWrapSubdomainInstructions,
   findListing,
+  findNameRecordPda,
+  findReverseRecordPda,
+  findAuction,
+  nameInfo,
 } from "@solans/sdk";
-import { accountExists, fundedSigner, readName, readMintSupply, send, setupEnv, type TestEnv } from "./harness.ts";
+import {
+  accountExists,
+  createMint,
+  fundedSigner,
+  initBurnPool,
+  initStaking,
+  mintTokens,
+  readAuction,
+  readName,
+  readMintSupply,
+  readReverse,
+  readTokenAmount,
+  send,
+  setSolansParams,
+  setupEnv,
+  type TestEnv,
+} from "./harness.ts";
 
 const YEAR = 31_536_000n;
 
@@ -126,5 +159,103 @@ describe("SDK marketplace builders (§9.1, web ⇄ on-chain parity)", () => {
     await send(env.svm, env.payer, await buildAcceptOfferInstructions({ owner: env.payer, name: "offered.sol", buyer: bidder.address, solTreasury: env.solTreasury }));
 
     expect(readName(env.svm, nameRecord)!.owner).toBe(bidder.address);
+  });
+});
+
+describe("SDK identity / subdomain / NFT / auction / staking builders (web ⇄ on-chain parity)", () => {
+  let env: TestEnv;
+  let cfg: { paymentMint: typeof env.mint; treasuryTokenAccount: typeof env.treasury; stakingVault: typeof env.stakingVault; burnVault: typeof env.burnVault };
+
+  beforeAll(async () => {
+    env = await setupEnv();
+    cfg = { paymentMint: env.mint, treasuryTokenAccount: env.treasury, stakingVault: env.stakingVault, burnVault: env.burnVault };
+  });
+
+  const registerPlain = async (name: string) => {
+    const { instructions, nameRecord } = await buildRegisterInstructions({ payer: env.payer, cfg, name, withNft: false });
+    await send(env.svm, env.payer, instructions);
+    return nameRecord;
+  };
+
+  it("transfer moves ownership", async () => {
+    const nr = await registerPlain("xfer.sol");
+    const other = await generateKeyPairSigner();
+    await send(env.svm, env.payer, await buildTransferInstructions({ owner: env.payer, name: "xfer.sol", newOwner: other.address }));
+    expect(readName(env.svm, nr)!.owner).toBe(other.address);
+  });
+
+  it("set-controller, lock, and set-reverse", async () => {
+    const nr = await registerPlain("ident.sol");
+    const ctrl = await generateKeyPairSigner();
+    await send(env.svm, env.payer, await buildSetControllerInstructions({ owner: env.payer, name: "ident.sol", controller: ctrl.address }));
+    expect(unwrapOption(readName(env.svm, nr)!.controller)).toBe(ctrl.address);
+
+    await send(env.svm, env.payer, await buildLockTransferInstructions({ owner: env.payer, name: "ident.sol", lock: true }));
+    expect(readName(env.svm, nr)!.transferLocked).toBe(true);
+
+    await send(env.svm, env.payer, await buildSetReverseInstructions({ owner: env.payer, name: "ident.sol" }));
+    const [rev] = await findReverseRecordPda({ owner: env.payer.address });
+    expect(readReverse(env.svm, rev)!.nameHash).toEqual(Uint8Array.from(nameInfo("ident.sol").hash));
+  });
+
+  it("tokenize then redeem round-trips the NFT", async () => {
+    const nr = await registerPlain("nftme.sol");
+    const { instructions, nftMint } = await buildTokenizeInstructions({ owner: env.payer, name: "nftme.sol" });
+    await send(env.svm, env.payer, instructions);
+    expect(unwrapOption(readName(env.svm, nr)!.nftMint)).toBe(nftMint);
+    expect(readMintSupply(env.svm, nftMint)).toBe(1n);
+
+    await send(env.svm, env.payer, await buildRedeemInstructions({ redeemer: env.payer, name: "nftme.sol", nftMint }));
+    expect(unwrapOption(readName(env.svm, nr)!.nftMint)).toBeNull();
+  });
+
+  it("wrap then revoke a subdomain", async () => {
+    await registerPlain("parent.sol");
+    const { instructions, childName } = await buildWrapSubdomainInstructions({ owner: env.payer, parent: "parent.sol", label: "pay" });
+    expect(childName).toBe("pay.parent.sol");
+    await send(env.svm, env.payer, instructions);
+    const [child] = await findNameRecordPda({ nameHash: nameInfo("pay.parent.sol").hash });
+    expect(readName(env.svm, child)!.owner).toBe(env.payer.address);
+
+    await send(env.svm, env.payer, await buildRevokeSubdomainInstructions({ owner: env.payer, parent: "parent.sol", label: "pay" }));
+    expect(accountExists(env.svm, child)).toBe(false);
+  });
+
+  it("burn releases a name", async () => {
+    const nr = await registerPlain("gone.sol");
+    await send(env.svm, env.payer, await buildBurnNameInstructions({ owner: env.payer, name: "gone.sol" }));
+    expect(accountExists(env.svm, nr)).toBe(false);
+  });
+
+  it("start an auction and place a bid", async () => {
+    // Register before enabling $SOLANS: initBurnPool repoints Config.burn_vault, which
+    // would make registerPlain's captured `cfg` stale.
+    await registerPlain("auct.sol");
+    const solansMint = await createMint(env, 6);
+    await initBurnPool(env, solansMint);
+    await setSolansParams(env, 1_000_000n, 0);
+    await send(env.svm, env.payer, await buildStartAuctionInstructions({ owner: env.payer, name: "auct.sol", solansMint, reservePrice: 1000n, durationSeconds: 1000n }));
+    const [auction] = await findAuction("auct.sol");
+    expect(readAuction(env.svm, auction)).not.toBeNull();
+
+    const bidder = await fundedSigner(env.svm);
+    await mintTokens(env, solansMint, bidder.address, 5000n);
+    await send(env.svm, bidder, await buildBidInstructions({ bidder, name: "auct.sol", solansMint, amount: 2000n }));
+    const a = readAuction(env.svm, auction)!;
+    expect(a.highestBid).toBe(2000n);
+    expect(unwrapOption(a.highestBidder)).toBe(bidder.address);
+  });
+
+  it("stake $SOLANS and claim (no reward yet)", async () => {
+    const e2 = await setupEnv();
+    const pool = await initStaking(e2);
+    const staker = await fundedSigner(e2.svm);
+    await mintTokens(e2, pool.solansMint, staker.address, 10_000n);
+    await mintTokens(e2, e2.mint, staker.address, 0n); // staker reward ATA
+    await send(e2.svm, staker, await buildStakeInstructions({ staker, pool, paymentMint: e2.mint, amount: 4000n }));
+    expect(readTokenAmount(e2.svm, pool.stakeVault)).toBe(4000n);
+
+    // claim with no accrued reward succeeds (pays 0)
+    await send(e2.svm, staker, await buildClaimRewardsInstructions({ staker, pool, paymentMint: e2.mint }));
   });
 });

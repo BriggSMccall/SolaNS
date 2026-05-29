@@ -150,5 +150,8 @@ export function buildApp(store: IndexStore = new MemoryStore()): FastifyInstance
 
   app.get("/watchlist", async () => ({ names: await store.watchlist() }));
 
+  // Marketplace browse grid: currently-listed names with prices (§9.1).
+  app.get("/listings", async () => ({ listings: await store.listings() }));
+
   return app;
 }

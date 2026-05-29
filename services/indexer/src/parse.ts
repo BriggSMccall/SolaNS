@@ -14,6 +14,9 @@ import { AccountRole, type Address, type AccountMeta, type ReadonlyUint8Array } 
 import {
   identifySolansInstruction,
   parseBurnNameInstruction,
+  parseBuyNameInstruction,
+  parseCancelListingInstruction,
+  parseListNameInstruction,
   parseRegisterNameInstruction,
   parseRegisterWithSolansInstruction,
   parseRenewNameInstruction,
@@ -37,7 +40,10 @@ export type IndexEvent =
   | { kind: "renew"; nameRecord: Address; name: string; tld: string; years: number }
   | { kind: "subdomain"; nameRecord: Address; parent: Address; owner: Address; label: string; nameHash: string }
   | { kind: "transfer"; nameRecord: Address; newOwner: Address }
-  | { kind: "burn"; nameRecord: Address };
+  | { kind: "burn"; nameRecord: Address }
+  | { kind: "list"; nameRecord: Address; seller: Address; priceLamports: string }
+  | { kind: "unlist"; nameRecord: Address }
+  | { kind: "buy"; nameRecord: Address; newOwner: Address };
 
 const hex = (b: ReadonlyUint8Array): string => Buffer.from(b as Uint8Array).toString("hex");
 
@@ -112,6 +118,18 @@ export function parseSolansInstruction(ix: RawInstruction): IndexEvent | null {
     case SolansInstruction.BurnName: {
       const p = parseBurnNameInstruction(ix as never);
       return { kind: "burn", nameRecord: p.accounts.nameRecord.address };
+    }
+    case SolansInstruction.ListName: {
+      const p = parseListNameInstruction(ix as never);
+      return { kind: "list", nameRecord: p.accounts.nameRecord.address, seller: p.accounts.owner.address, priceLamports: p.data.price.toString() };
+    }
+    case SolansInstruction.CancelListing: {
+      const p = parseCancelListingInstruction(ix as never);
+      return { kind: "unlist", nameRecord: p.accounts.nameRecord.address };
+    }
+    case SolansInstruction.BuyName: {
+      const p = parseBuyNameInstruction(ix as never);
+      return { kind: "buy", nameRecord: p.accounts.nameRecord.address, newOwner: p.accounts.buyer.address };
     }
     default:
       return null;

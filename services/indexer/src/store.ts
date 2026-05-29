@@ -29,6 +29,8 @@ export interface NameEntry {
   expiresAt?: number;
   /** False once burned. */
   active: boolean;
+  /** Present while listed on the SOL marketplace (§9.1). */
+  listed?: { priceLamports: string; seller: Address };
   lastSig?: string;
   lastSlot?: number;
 }
@@ -49,6 +51,8 @@ export interface IndexStore {
   search(prefix: string, limit?: number): Promise<NameEntry[]>;
   /** Active names with a known label — the keeper's auto-renew watchlist. */
   watchlist(): Promise<string[]>;
+  /** Currently-listed names (the marketplace browse grid). */
+  listings(): Promise<NameEntry[]>;
   all(): Promise<NameEntry[]>;
 }
 
@@ -77,6 +81,9 @@ export class MemoryStore implements IndexStore {
   }
   async watchlist(): Promise<string[]> {
     return [...this.byRecord.values()].filter((e) => e.active && e.fullName).map((e) => e.fullName!);
+  }
+  async listings(): Promise<NameEntry[]> {
+    return [...this.byRecord.values()].filter((e) => e.active && e.listed);
   }
   async all(): Promise<NameEntry[]> {
     return [...this.byRecord.values()];
@@ -139,6 +146,21 @@ export async function applyEvent(store: IndexStore, ev: IndexEvent, meta: EventM
     case "burn": {
       const e = await store.getByRecord(ev.nameRecord);
       if (e) await store.upsert({ ...e, active: false, lastSig: meta.sig, lastSlot: meta.slot });
+      return;
+    }
+    case "list": {
+      const e = await store.getByRecord(ev.nameRecord);
+      if (e) await store.upsert({ ...e, listed: { priceLamports: ev.priceLamports, seller: ev.seller }, lastSig: meta.sig, lastSlot: meta.slot });
+      return;
+    }
+    case "unlist": {
+      const e = await store.getByRecord(ev.nameRecord);
+      if (e) await store.upsert({ ...e, listed: undefined, lastSig: meta.sig, lastSlot: meta.slot });
+      return;
+    }
+    case "buy": {
+      const e = await store.getByRecord(ev.nameRecord);
+      if (e) await store.upsert({ ...e, owner: ev.newOwner, listed: undefined, lastSig: meta.sig, lastSlot: meta.slot });
       return;
     }
   }

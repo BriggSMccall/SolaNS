@@ -90,6 +90,14 @@ export async function ingestHeliusTxs(
 export function buildApp(store: IndexStore = new MemoryStore()): FastifyInstance {
   const app = Fastify({ logger: false });
 
+  // CORS: the browser marketplace (a different origin) reads /listings + /search.
+  app.addHook("onRequest", async (req, reply) => {
+    reply.header("access-control-allow-origin", "*");
+    reply.header("access-control-allow-headers", "content-type");
+    reply.header("access-control-allow-methods", "GET,POST,OPTIONS");
+    if (req.method === "OPTIONS") return reply.code(204).send();
+  });
+
   // Observability (§13): indexed events by type, webhook batches, HTTP latency.
   const registry = new Registry();
   const httpRequests = registry.counter("solans_http_requests_total", "Indexer HTTP requests handled");

@@ -12,6 +12,11 @@ solans = "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf"
 [programs.devnet]
 solans = "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf"
 
+# The id below is rotated to the real mainnet program id by
+# scripts/rotate-program-id.sh on the mainnet release commit (see docs/GOVERNANCE.md).
+[programs.mainnet]
+solans = "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf"
+
 [provider]
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"

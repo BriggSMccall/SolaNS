@@ -8,6 +8,12 @@ resolver = "2"
 overflow-checks = true
 lto = "fat"
 codegen-units = 1
+# Size-optimized for a lean rent-exempt deposit (rent ∝ .so size). `overflow-checks`
+# stays on (financial program); `opt-level = "z"` + symbol strip + abort-on-panic
+# shave the binary without touching safety.
+opt-level = "z"
+strip = true
+panic = "abort"
 [profile.release.build-override]
 opt-level = 3
 incremental = false

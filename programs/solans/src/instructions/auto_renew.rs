@@ -71,6 +71,11 @@ pub fn handler(ctx: Context<AutoRenew>, name: String, tld: String, years: u16) -
 
     let config = &ctx.accounts.config;
     validate_years(years, config.min_years, config.max_years)?;
+    // Defense-in-depth: a permissionless keeper must not be able to pick a long
+    // term and pull more of the owner's SPL delegation than a single renewal.
+    // Auto-renew always extends by exactly one year; the owner re-delegates each
+    // period and renews longer terms manually via `renew_name`.
+    require!(years == 1, SolansError::InvalidYears);
     let amount = config
         .price_for_label(&name)
         .checked_mul(years as u64)

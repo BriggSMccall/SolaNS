@@ -31,7 +31,7 @@ use solana_program::pubkey::Pubkey;
 /// for a different deployment, build the client with
 /// [`SolansClient::new_with_program_id`].
 pub const PROGRAM_ID: Pubkey =
-    solana_program::pubkey!("7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf");
+    solana_program::pubkey!("AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb");
 
 /// Account-decode errors.
 #[derive(Debug)]

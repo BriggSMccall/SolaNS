@@ -7,15 +7,15 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-solans = "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf"
+solans = "AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb"
 
 [programs.devnet]
-solans = "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf"
+solans = "AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb"
 
 # The id below is rotated to the real mainnet program id by
 # scripts/rotate-program-id.sh on the mainnet release commit (see docs/GOVERNANCE.md).
 [programs.mainnet]
-solans = "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf"
+solans = "AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb"
 
 [provider]
 cluster = "localnet"

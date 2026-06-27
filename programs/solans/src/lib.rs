@@ -10,7 +10,7 @@ use anchor_lang::prelude::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf");
+declare_id!("AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb");
 
 #[program]
 pub mod solans {

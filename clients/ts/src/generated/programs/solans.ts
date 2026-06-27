@@ -233,7 +233,7 @@ import {
 } from "../pdas";
 
 export const SOLANS_PROGRAM_ADDRESS =
-  "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf" as Address<"7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf">;
+  "AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb" as Address<"AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb">;
 
 export enum SolansAccount {
   Auction,
@@ -838,7 +838,7 @@ export function identifySolansInstruction(
 }
 
 export type ParsedSolansInstruction<
-  TProgram extends string = "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf",
+  TProgram extends string = "AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb",
 > =
   | ({
       instructionType: SolansInstruction.AcceptOffer;

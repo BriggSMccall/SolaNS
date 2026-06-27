@@ -23,7 +23,7 @@ export async function findReverseRecordPda(
   config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = "7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf" as Address<"7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf">,
+    programAddress = "AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb" as Address<"AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb">,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

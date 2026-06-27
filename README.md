@@ -85,7 +85,6 @@ services/resolver/    Fastify resolver: HTTP + DoH (JSON + binary RFC-8484) + ca
 services/keeper/      auto-renew + notification keeper (§6.2): watchlist -> auto_renew + webhook events
 services/indexer/     §13 indexer: Helius webhook -> label recovery -> search / owner / watchlist
 services/observability/ §13 monitoring: zero-dep Prometheus metrics lib (wired into the 3 services)
-web/                  §10/§13 Next.js 14 landing site ("Identity Forge"): forge UI + live pricing
 tests/                vitest + litesvm in-process tests (incl. clock-warp claim + NFT)
   fixtures/           mpl_token_metadata.so — committed mainnet dump for NFT tests
 scripts/deploy-devnet.sh        one-shot deploy + smoke
@@ -269,14 +268,6 @@ the keeper serves `/metrics` on `KEEPER_METRICS_PORT` when set (its metrics sink
 another `Notifier`). Point a Prometheus scrape at those endpoints; Grafana dashboards and
 PagerDuty alert routes are deployment-time config on top.
 
-`web` is the §10/§13 **Next.js 14** landing site — a faithful build of the "SOLANS
-Identity Forge" design (chrome-metallic, canvas particle background, the cold-key→name
-"forge" animation). `pnpm --filter web dev`. The pricing calculator computes live quotes
-with the SDK's `priceForLabel` (real §9.2 tiers) and the fee-split section shows the real
-§8.2 **60/25/10/5**; the hero search resolves availability against `@solans/sdk` when
-`NEXT_PUBLIC_SOLANS_RPC_URL` is set, falling back to the demo otherwise. Wallet writes
-(register/manage/marketplace) are the staged Stage-2 continuation — see `web/README.md`.
-
 ## Security notes
 
 - The program never trusts a client hash: `register_name` re-derives
@@ -303,5 +294,5 @@ with the SDK's `priceForLabel` (real §9.2 tiers) and the fee-split section show
 ## Deferred (fast-follows)
 
 English auctions (5-min auto-extend) · `$SOLANS` token + fee-split + governance ·
-tradeable/reverse subdomains · binary RFC-8484 DoH · Web UI · Arweave/IPFS hosting
+tradeable/reverse subdomains · binary RFC-8484 DoH · Arweave/IPFS hosting
 service · Unicode/emoji names (+ emoji premium) · dynamic record realloc.

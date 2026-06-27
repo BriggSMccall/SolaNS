@@ -14,13 +14,7 @@ dist
 .env.local
 coverage
 .pnpm-store
-
-# Web app + deploy config live in a separate project (../SolaNS-site), not this repo
-web
-.vercel
-.vercelignore
-vercel.json
 scratch-deploy
 
-# Playwright CLI session artifacts
+# Local CLI session artifacts
 .playwright-cli

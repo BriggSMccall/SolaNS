@@ -18,3 +18,7 @@ scratch-deploy
 
 # Local CLI session artifacts
 .playwright-cli
+
+# Local dev-process notes (kept out of the public repo)
+CLAUDE.md
+PROJECT.md

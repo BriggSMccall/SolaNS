@@ -16,7 +16,9 @@
 set -euo pipefail
 
 PROGRAM_NAME="solans"
-PROGRAM_ID="7pVCKp81EHJi2DbUtUXAkk2b3VtrUZwj2hWDakXY2dMf"
+# Canonical mainnet program id (matches declare_id! / Anchor.toml). Used only for
+# the optional on-chain `verify-from-repo` comparison — the build itself is keyless.
+PROGRAM_ID="AiDB9oh4jMKuGnx4nEseMgW7qpMnswygx6wpFKJbXKfb"
 REPO_URL="${SOLANS_REPO_URL:-https://github.com/BriggSMccall/SolaNS}"
 RPC_URL="${1:-}"
 # Pin the verifiable-build base image to the program's Solana version (3.1.10). The

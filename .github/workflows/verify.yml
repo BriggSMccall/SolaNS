@@ -14,10 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Pin the program id (canonical declare_id)
-        run: |
-          mkdir -p target/deploy
-          cp solans-keypair.json target/deploy/solans-keypair.json
+      # No keypair copy needed: the program id is fixed by `declare_id!` in source,
+      # so the reproducible `.so` hash is independent of any deploy keypair file.
 
       - name: Install solana-verify
         run: cargo install solana-verify --locked

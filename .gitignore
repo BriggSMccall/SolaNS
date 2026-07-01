@@ -22,3 +22,8 @@ scratch-deploy
 # Local dev-process notes (kept out of the public repo)
 CLAUDE.md
 PROJECT.md
+AUDIT.md
+
+# Program keypairs — never commit (build with `anchor build --ignore-keys`)
+solans-keypair.json
+*-keypair.json
